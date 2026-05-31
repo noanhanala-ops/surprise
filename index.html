@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Para a Leila ♡</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Marcellus&family=Dancing+Script:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #4a3a3f;
+    --rose: #c97b84;
+    --rose-deep: #a85a6a;
+    --blush: #f6e9e7;
+    --cream: #fdf8f4;
+    --gold: #c9a36b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Cormorant Garamond', serif;
+    background: radial-gradient(ellipse at top, #fdf8f4 0%, #f6e9e7 55%, #efd9d6 100%);
+    color: var(--ink);
+    overflow-x: hidden;
+    line-height: 1.6;
+  }
+
+  /* floating hearts background */
+  .hearts {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .heart {
+    position: absolute;
+    bottom: -40px;
+    font-size: 18px;
+    color: var(--rose);
+    opacity: 0;
+    animation: float-up linear infinite;
+  }
+  @keyframes float-up {
+    0%   { transform: translateY(0) rotate(0deg) scale(0.6); opacity: 0; }
+    10%  { opacity: 0.5; }
+    90%  { opacity: 0.4; }
+    100% { transform: translateY(-110vh) rotate(360deg) scale(1.1); opacity: 0; }
+  }
+
+  .wrap { position: relative; z-index: 1; }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+  }
+  .hero .pre {
+    font-family: 'Marcellus', serif;
+    letter-spacing: 0.45em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: var(--rose-deep);
+    opacity: 0;
+    animation: fade-in 1.2s ease forwards 0.3s;
+  }
+  .hero .ornament {
+    color: var(--gold);
+    font-size: 1.4rem;
+    margin: 1.4rem 0;
+    opacity: 0;
+    animation: fade-in 1.2s ease forwards 0.6s;
+  }
+  .hero h1 {
+    font-family: 'Dancing Script', cursive;
+    font-size: clamp(3.4rem, 13vw, 7rem);
+    font-weight: 700;
+    color: var(--rose-deep);
+    line-height: 1;
+    opacity: 0;
+    animation: rise 1.4s cubic-bezier(.2,.7,.2,1) forwards 0.8s;
+  }
+  .hero .sub {
+    font-size: clamp(1.2rem, 4vw, 1.7rem);
+    font-style: italic;
+    margin-top: 1.5rem;
+    color: var(--ink);
+    opacity: 0;
+    animation: fade-in 1.4s ease forwards 1.4s;
+  }
+  .scroll-cue {
+    margin-top: 3.5rem;
+    font-family: 'Marcellus', serif;
+    letter-spacing: 0.2em;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--rose-deep);
+    opacity: 0;
+    animation: fade-in 1.4s ease forwards 2s, bob 2s ease-in-out infinite 2.4s;
+  }
+
+  @keyframes fade-in { to { opacity: 1; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+
+  /* SECTIONS */
+  section.block {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 5rem 2rem;
+  }
+  .reveal { opacity: 0; transform: translateY(36px); transition: opacity 1s ease, transform 1s ease; }
+  .reveal.show { opacity: 1; transform: translateY(0); }
+
+  .heading {
+    font-family: 'Dancing Script', cursive;
+    font-size: clamp(2rem, 7vw, 3rem);
+    color: var(--rose-deep);
+    text-align: center;
+    margin-bottom: 0.4rem;
+  }
+  .heading-rule {
+    width: 60px;
+    height: 1px;
+    background: var(--gold);
+    margin: 0 auto 2.5rem;
+    position: relative;
+  }
+  .heading-rule::before {
+    content: "♡";
+    position: absolute;
+    top: -0.75rem; left: 50%;
+    transform: translateX(-50%);
+    background: transparent;
+    color: var(--gold);
+    font-size: 0.9rem;
+  }
+
+  /* TIMELINE */
+  .timeline { position: relative; padding-left: 2rem; }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: 6px; top: 8px; bottom: 8px;
+    width: 2px;
+    background: linear-gradient(var(--rose), var(--gold));
+  }
+  .event { position: relative; margin-bottom: 2.6rem; }
+  .event::before {
+    content: "";
+    position: absolute;
+    left: -2rem; top: 6px;
+    width: 14px; height: 14px;
+    background: var(--cream);
+    border: 2px solid var(--rose-deep);
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px var(--blush);
+  }
+  .event .year {
+    font-family: 'Marcellus', serif;
+    letter-spacing: 0.2em;
+    font-size: 0.8rem;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .event h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: var(--rose-deep);
+    margin: 0.2rem 0 0.3rem;
+  }
+  .event p { font-size: 1.15rem; }
+
+  /* LETTER */
+  .letter {
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(201,163,107,0.4);
+    border-radius: 4px;
+    padding: 3rem 2.4rem;
+    box-shadow: 0 30px 60px -30px rgba(168,90,106,0.35);
+    backdrop-filter: blur(2px);
+  }
+  .letter p {
+    font-size: 1.28rem;
+    margin-bottom: 1.3rem;
+  }
+  .letter .first::first-letter {
+    font-family: 'Dancing Script', cursive;
+    font-size: 3.4rem;
+    color: var(--rose-deep);
+    float: left;
+    line-height: 0.8;
+    margin: 0.4rem 0.6rem 0 0;
+  }
+  .signoff {
+    text-align: right;
+    font-family: 'Dancing Script', cursive;
+    font-size: 1.9rem;
+    color: var(--rose-deep);
+    margin-top: 1rem;
+  }
+
+  /* FINAL */
+  .finale {
+    text-align: center;
+    padding: 6rem 2rem 7rem;
+  }
+  .finale .big {
+    font-family: 'Dancing Script', cursive;
+    font-size: clamp(2.4rem, 9vw, 4.5rem);
+    color: var(--rose-deep);
+    line-height: 1.1;
+  }
+  .finale .ring {
+    font-size: 2rem;
+    margin: 1.5rem 0;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+  .finale .small {
+    font-style: italic;
+    font-size: 1.2rem;
+    max-width: 460px;
+    margin: 0 auto;
+  }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    font-family: 'Marcellus', serif;
+    letter-spacing: 0.25em;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--rose-deep);
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+<div class="hearts" id="hearts"></div>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="pre">Hoje celebramos</div>
+    <div class="ornament">❧ ⚜ ❧</div>
+    <h1>Leila Yurica</h1>
+    <div class="sub">um ano de nós dois &mdash; e uma vida inteira pela frente</div>
+    <div class="scroll-cue">desliza para baixo ↓</div>
+  </header>
+
+  <section class="block">
+    <div class="reveal">
+      <h2 class="heading">A nossa história</h2>
+      <div class="heading-rule"></div>
+      <div class="timeline">
+        <div class="event">
+          <div class="year">2007 &mdash; Explicação da Prof. Severina</div>
+          <h3>Onde tudo começou</h3>
+          <p>Entre cadernos e dúvidas da escola, eu encontrei-te. E nesse dia tornaste-te a minha crush — sem eu sequer imaginar tudo o que viria depois.</p>
+        </div>
+        <div class="event">
+          <div class="year">Os anos no meio</div>
+          <h3>Caminhos que se cruzaram</h3>
+          <p>Namorámos, separámo-nos, seguimos por outros caminhos e amámos outras pessoas. Mas a vida tinha um plano que nenhum de nós controlava.</p>
+        </div>
+        <div class="event">
+          <div class="year">Fevereiro</div>
+          <h3>Disse "sim"</h3>
+          <p>Estamos noivos. A promessa de um futuro juntos deixou de ser sonho e passou a ser planta de uma casa que vamos construir.</p>
+        </div>
+        <div class="event">
+          <div class="year">Hoje &mdash; 1 ano</div>
+          <h3>Pela primeira vez, nós</h3>
+          <p>O nosso primeiro ano de namoro. Conversamos todos os dias, fofocamos como dois miúdos, e tu és, ao mesmo tempo, a minha companheira e a minha melhor amiga.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="reveal">
+      <h2 class="heading">Para ti</h2>
+      <div class="heading-rule"></div>
+      <div class="letter">
+        <p class="first">Leila, esperei desde 2007 para poder escrever isto com a certeza que tenho hoje. Foste a minha crush antes de eu saber o que isso significava, e tornaste-te a mulher com quem quero passar o resto da vida.</p>
+        <p>O caminho não foi reto. Tivémos voltas, distâncias e outras pessoas pelo meio — mas talvez tudo isso tenha existido só para me ensinar a reconhecer o que era verdadeiro quando voltasse a ter-te à minha frente.</p>
+        <p>Amo-te muito. Amo que sejas a minha companheira nas coisas grandes e a minha melhor amiga nas pequenas. Amo as nossas conversas de todos os dias e as nossas fofocas que não acabam.</p>
+        <p>Quero construir um futuro contigo. Uma casa, uma vida, os nossos filhos. Quero envelhecer a fazer-te rir. Este primeiro ano é só o começo daquilo que combinámos para sempre.</p>
+        <p class="signoff">Para sempre teu ♡</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="finale">
+    <div class="reveal">
+      <div class="big">Feliz 1 ano,<br>meu amor</div>
+      <div class="ring">💍</div>
+      <p class="small">De namorados a noivos, de 2007 a sempre. O melhor de nós ainda está por viver.</p>
+    </div>
+  </section>
+
+  <footer>com todo o meu amor</footer>
+</div>
+
+<script>
+  // floating hearts
+  const hearts = document.getElementById('hearts');
+  const glyphs = ['♡','❤','♥','❦'];
+  for (let i = 0; i < 26; i++) {
+    const h = document.createElement('span');
+    h.className = 'heart';
+    h.textContent = glyphs[Math.floor(Math.random()*glyphs.length)];
+    h.style.left = Math.random()*100 + 'vw';
+    h.style.fontSize = (12 + Math.random()*22) + 'px';
+    h.style.animationDuration = (9 + Math.random()*10) + 's';
+    h.style.animationDelay = (Math.random()*12) + 's';
+    h.style.color = Math.random() > 0.5 ? '#c97b84' : '#c9a36b';
+    hearts.appendChild(h);
+  }
+
+  // scroll reveal
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('show'); });
+  }, { threshold: 0.18 });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>
