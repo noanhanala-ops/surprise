@@ -48,6 +48,13 @@ class Tests(unittest.TestCase):
         self.assertEqual((r.tech, r.cell_id, r.lat), ("LTE", 12345678, -23.55))
         self.assertTrue(r.timestamp.startswith("2024-03-"))
 
+    def test_ios_path_with_special_chars(self):
+        d = os.path.join(self.d, "ext #1 ?x")
+        os.makedirs(d)
+        make_ios_db(os.path.join(d, "cache_encryptedB.db"))
+        recs = [r for r in collect(d) if r.platform == "ios"]
+        self.assertEqual(len(recs), 1)
+
     def test_cli_outputs(self):
         out = os.path.join(self.d, "out")
         self.assertEqual(main([self.d, "-o", out]), 0)

@@ -7,6 +7,7 @@ entre versões do iOS; o parser é tolerante e mapeia colunas por nome.
 """
 import os
 import sqlite3
+from urllib.parse import quote
 from datetime import datetime, timedelta, timezone
 
 from ..models import CellRecord, clean_int
@@ -46,7 +47,7 @@ def _col(cols, *names):
 
 
 def _parse_db(path, rel, sha, out):
-    uri = "file:%s?mode=ro&immutable=1" % path
+    uri = "file:%s?mode=ro&immutable=1" % quote(path)
     try:
         con = sqlite3.connect(uri, uri=True)
     except sqlite3.Error:
