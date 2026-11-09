@@ -5,6 +5,7 @@ Observação: bugreport/dumpsys mostram apenas o estado no momento da captura
 retido no buffer.
 """
 import io
+import json
 import os
 import re
 import zipfile
@@ -48,9 +49,8 @@ def _lines_from_file(path):
         yield from f
 
 
-def _parse_lines(lines, rel, sha, source_type, out):
-    header_dt = None
-    header_year = None
+def _parse_lines(lines, rel, sha, source_type, out, header_dt=None):
+    header_year = header_dt.year if header_dt else None
     seen = set()
     for line in lines:
         if header_dt is None:
@@ -94,9 +94,26 @@ def _parse_lines(lines, rel, sha, source_type, out):
             out.append(rec)
 
 
+def _sidecar(base):
+    """acquisition_log.json (gerado por 'cellforensics acquire') informa a hora do aparelho
+    (UTC) em que cada arquivo foi coletado, sem alterar o arquivo bruto."""
+    p = os.path.join(base, "acquisition_log.json")
+    times = {}
+    try:
+        with open(p, encoding="utf-8") as f:
+            for c in json.load(f).get("commands", []):
+                if c.get("file") and c.get("device_time_utc"):
+                    times[c["file"]] = datetime.strptime(
+                        c["device_time_utc"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except (OSError, ValueError, KeyError):
+        pass
+    return times
+
+
 def parse(root):
     out = []
     base = root if os.path.isdir(root) else os.path.dirname(root)
+    times = _sidecar(base)
     for path in walk(root):
         rel = os.path.relpath(path, base)
         low = path.lower()
@@ -114,5 +131,6 @@ def parse(root):
                 pass
             continue
         if _candidate(path):
-            _parse_lines(_lines_from_file(path), rel, sha256_file(path), "dumpsys", out)
+            _parse_lines(_lines_from_file(path), rel, sha256_file(path), "dumpsys", out,
+                         header_dt=times.get(rel.replace(os.sep, "/")))
     return out

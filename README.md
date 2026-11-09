@@ -28,6 +28,25 @@ python -m unittest discover -s tests                              # testes
 Saída: `cells.csv` (planilha), `cells.json` (com hashes SHA-256 das fontes, para o laudo) e
 `report.html` (resumo por célula, linha do tempo, fontes).
 
+## Coleta direta de um Android (adb)
+
+```bash
+python -m cellforensics acquire -o caso01/ --case-id 2024-123 --examiner "Fulano"
+python -m cellforensics monitor -o caso01/ --interval 30      # histórico a partir de agora
+```
+
+Requisitos: aparelho em posse do examinador **com autorização legal ou do titular**, `adb`
+(Android platform-tools), depuração USB ativa e o computador autorizado **na tela do aparelho**.
+Só roda comandos adb de leitura (`getprop`, `dumpsys telephony.registry`, `logcat -b radio -d`,
+`bugreport`); **não** usa root, não contorna bloqueio e não explora falhas. Gera
+`acquisition_log.json` (comandos, horários, modelo, hashes SHA-256) e já roda a análise em
+`caso01/analise/`. O `monitor` grava `monitor_cells.csv` sempre que a célula em uso muda.
+
+Limites: a coleta mostra a célula **atual** e o que está no buffer de logs, não o histórico
+passado. Dados antigos dependem do conteúdo do aparelho (extração completa, p.ex. Cellebrite/AXIOM)
+e da operadora. **iOS:** não há coleta direta nesta ferramenta; o histórico de células do locationd
+exige extração de sistema de arquivos por ferramenta forense própria, e depois é analisado aqui.
+
 ## Artefatos suportados
 
 | Plataforma | Artefato | Horário |

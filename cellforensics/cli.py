@@ -19,7 +19,43 @@ def collect(path):
     return unique
 
 
+def _acquire_main(argv):
+    from . import acquire
+    ap = argparse.ArgumentParser(
+        prog="cellforensics acquire|monitor",
+        description="Coleta somente-leitura de um Android conectado por USB (adb). Exige "
+                    "autorização legal/do titular, depuração USB habilitada e confirmação no aparelho.")
+    ap.add_argument("mode", choices=["acquire", "monitor"])
+    ap.add_argument("-o", "--output", default="coleta", help="pasta de saída")
+    ap.add_argument("--serial", help="serial do aparelho (se houver mais de um)")
+    ap.add_argument("--case-id", default="", help="identificador do caso")
+    ap.add_argument("--examiner", default="", help="nome do examinador")
+    ap.add_argument("--no-bugreport", action="store_true", help="pula o bugreport (demorado)")
+    ap.add_argument("--no-analyze", action="store_true", help="não gera o relatório ao final")
+    ap.add_argument("--interval", type=int, default=30, help="monitor: segundos entre leituras")
+    ap.add_argument("--duration", type=int, help="monitor: duração total em segundos")
+    args = ap.parse_args(argv)
+    try:
+        if args.mode == "monitor":
+            print("saída:", acquire.monitor(args.output, args.serial, args.interval, args.duration))
+            return 0
+        meta = acquire.acquire(args.output, args.serial, args.case_id, args.examiner,
+                               bugreport=not args.no_bugreport)
+    except acquire.AcquireError as e:
+        print("erro: %s" % e, file=sys.stderr)
+        return 2
+    failed = [c["file"] for c in meta["commands"] if c["returncode"] != 0]
+    if failed:
+        print("atenção: comandos com falha (ver acquisition_log.json): %s" % ", ".join(failed))
+    if not args.no_analyze:
+        return main([args.output, "-o", os.path.join(args.output, "analise")])
+    return 0
+
+
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] in ("acquire", "monitor"):
+        return _acquire_main(argv)
     ap = argparse.ArgumentParser(
         prog="cellforensics",
         description="Extrai células (antenas) de uma extração forense Android/iOS já adquirida "

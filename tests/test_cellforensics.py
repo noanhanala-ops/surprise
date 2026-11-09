@@ -74,5 +74,41 @@ class Tests(unittest.TestCase):
         self.assertTrue(any(r["coord_origin"] == "towerdb" for r in doc["records"]))
 
 
+class AcquireTests(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        bindir = os.path.join(self.d, "bin")
+        os.makedirs(bindir)
+        os.symlink(os.path.abspath(os.path.join(os.path.dirname(__file__), "fake_adb.py")),
+                   os.path.join(bindir, "adb"))
+        self._path = os.environ["PATH"]
+        os.environ["PATH"] = bindir + os.pathsep + self._path
+
+    def tearDown(self):
+        os.environ["PATH"] = self._path
+
+    def test_acquire_and_analyze(self):
+        out = os.path.join(self.d, "coleta")
+        self.assertEqual(main(["acquire", "-o", out, "--case-id", "C1", "--examiner", "X"]), 0)
+        log = json.load(open(os.path.join(out, "acquisition_log.json")))
+        self.assertEqual(log["case_id"], "C1")
+        self.assertEqual(log["device"]["ro.product.model"], "Pixel 7")
+        self.assertTrue(all(c["sha256"] for c in log["commands"]))
+        doc = json.load(open(os.path.join(out, "analise", "cells.json")))
+        snap = [r for r in doc["records"] if r["cell_id"] == 12345678][0]
+        self.assertTrue(snap["timestamp"].startswith("2024-03-10T14:30:00"))
+        self.assertTrue(any(r["cell_id"] == 999 and r["source_type"] == "logcat" for r in doc["records"]))
+
+    def test_no_device(self):
+        os.environ["PATH"] = self.d  # sem adb
+        self.assertEqual(main(["acquire", "-o", os.path.join(self.d, "x")]), 2)
+
+    def test_monitor(self):
+        from cellforensics import acquire
+        p = acquire.monitor(os.path.join(self.d, "mon"), interval=1, duration=1, log=lambda *_: None)
+        rows = open(p).read().strip().splitlines()
+        self.assertEqual(len(rows), 2)  # cabeçalho + 1 mudança (leituras iguais não repetem)
+
+
 if __name__ == "__main__":
     unittest.main()
