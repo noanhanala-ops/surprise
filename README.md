@@ -10,8 +10,9 @@ A pasta `docs/` contém uma versão que roda **só no navegador**: abra a págin
 extração e baixe CSV/JSON/HTML. Nada é enviado a servidor (a página usa uma CSP que bloqueia
 conexões externas; o leitor SQLite `sql.js` está incluído em `docs/vendor/`, sem CDN).
 
-Publicar: no GitHub, *Settings → Pages → Build and deployment → Deploy from a branch →
-Branch: `main`, pasta `/docs`*. O link será `https://<usuario>.github.io/<repo>/`.
+Publicar (mantendo também a página `index.html` da raiz): *Settings → Pages → Build and deployment →
+Deploy from a branch → Branch: `main`, pasta `/ (root)`*. A página da raiz continua em
+`https://<usuario>.github.io/<repo>/` e a ferramenta fica em `https://<usuario>.github.io/<repo>/docs/`.
 Teste local: `cd docs && python3 -m http.server 8000`. Testes: `node tests/js/test.js`.
 Limites: arquivos acima de ~1,5 GB não têm SHA-256 calculado; ZIP64 não é suportado.
 
