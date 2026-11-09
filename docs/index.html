@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<title>cellforensics — antenas observadas por um aparelho</title>
+<style>
+  body{font:15px/1.5 system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem;color:#222}
+  h1{margin-bottom:.2rem}.sub{color:#555;margin-top:0}
+  .priv{background:#e8f5e9;border:1px solid #81c784;padding:.6rem .9rem;border-radius:6px}
+  .warn{background:#fff4d6;border:1px solid #e0b84a;padding:.6rem .9rem;border-radius:6px}
+  #drop{border:2px dashed #888;border-radius:8px;padding:2rem;text-align:center;margin:1rem 0}
+  #drop.over{background:#eef4ff;border-color:#2a6edb}
+  button{font:inherit;padding:.4rem .9rem;margin:.2rem}
+  table{border-collapse:collapse;width:100%;margin-top:.5rem}td,th{border:1px solid #bbb;padding:3px 8px;text-align:left}
+  th{background:#eee}label{display:block;margin:.4rem 0}
+</style>
+</head>
+<body>
+<h1>cellforensics</h1>
+<p class="sub">Lista as antenas (células) observadas por um aparelho, a partir de uma extração forense já obtida.</p>
+<p class="priv"><strong>Privacidade:</strong> o processamento ocorre inteiramente no seu navegador.
+Os arquivos <strong>não são enviados</strong> a nenhum servidor (a página bloqueia conexões externas).</p>
+
+<div id="drop">
+  <p><strong>Arraste aqui</strong> a pasta da extração, um bugreport (.txt/.zip) ou bancos do iOS (<code>consolidated.db</code>, <code>cache_encrypted*.db</code>)</p>
+  <label>Ou escolha arquivos: <input type="file" id="pickFiles" multiple></label>
+  <label>Ou uma pasta: <input type="file" id="pickDir" webkitdirectory multiple></label>
+  <label>Base de torres opcional (CSV do OpenCelliD) para estimar coordenadas: <input type="file" id="towerdb" accept=".csv"></label>
+  <p id="count"></p>
+</div>
+<button id="run" disabled>Processar</button><button id="clear">Limpar</button>
+<p id="status" role="status"></p>
+
+<section id="results" hidden>
+  <h2>Células encontradas</h2>
+  <button id="dlCsv">Baixar CSV</button><button id="dlJson">Baixar JSON</button><button id="dlHtml">Baixar relatório HTML</button>
+  <table id="cells"><thead><tr><th>Tec.</th><th>MCC-MNC</th><th>LAC/TAC</th><th>Cell ID</th><th>Primeira</th><th>Última</th><th>Registros</th></tr></thead><tbody></tbody></table>
+</section>
+
+<p class="warn"><strong>Limitações:</strong> uma célula indica área de cobertura, não a posição exata do aparelho.
+Bugreports mostram só o momento da captura. Formatos variam por versão de SO; valide com ferramenta de referência
+e cruze com o extrato de ERBs da operadora.</p>
+
+<script src="vendor/sql-wasm.js"></script>
+<script src="cellforensics.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
