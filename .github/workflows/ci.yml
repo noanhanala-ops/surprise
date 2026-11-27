@@ -72,3 +72,13 @@ jobs:
       - run: npm ci
       - run: npm run build -w @drp/contracts
       - run: npm run test:infra -w @drp/api
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+      - run: npm run typecheck -w @drp/web
+      - run: npm run build -w @drp/web
+        env: { API_URL: "http://localhost:3001" }

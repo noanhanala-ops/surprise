@@ -6,7 +6,8 @@ import { FakeProvider } from './fake.provider';
 @Injectable()
 export class ProviderRegistry {
   private map = new Map<string, PaymentProvider>();
-  constructor(fake: FakeProvider) { if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_FAKE_PROVIDER === 'true') this.map.set(fake.code, fake); }
+  // Explícito: o fornecedor simulado nunca é activado por omissão.
+  constructor(fake: FakeProvider) { if (process.env.SANDBOX_MODE === 'true') this.map.set(fake.code, fake); }
   get(code: string): PaymentProvider { const p = this.map.get(code); if (!p) throw new NotFoundException(`Fornecedor desconhecido: ${code}`); return p; }
   list() { return [...this.map.keys()]; }
 }

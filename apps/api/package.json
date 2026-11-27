@@ -7,7 +7,8 @@
     "start": "node dist/main.js",
     "start:dev": "ts-node src/main.ts",
     "test": "jest --runInBand",
-    "test:infra": "jest --runInBand -c jest.infra.config.js"
+    "test:infra": "jest --runInBand -c jest.infra.config.js",
+    "seed:demo": "ts-node scripts/seed-demo.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1178.0",

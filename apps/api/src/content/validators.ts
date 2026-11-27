@@ -31,6 +31,14 @@ export async function validateEpub(buf: Buffer): Promise<ValidationResult> {
   const pick = (re: RegExp) => re.exec(opf)?.[1]?.trim();
   const title = pick(/<dc:title[^>]*>([^<]+)</);
   if (!title) return fail('EPUB inválido: sem dc:title');
+  // Política: sem conteúdo activo. Os iframes do leitor partilham a origem da app (allow-same-origin), logo um <script> num EPUB seria XSS.
+  const props = [...opf.matchAll(/properties="([^"]*)"/g)].map((m) => m[1]);
+  if (props.some((p) => /\bscripted\b/.test(p))) return fail('EPUB com scripts (properties="scripted") não é permitido');
+  for (const name of Object.keys(z.files)) {
+    if (!/\.(x?html?|svg)$/i.test(name)) continue;
+    const src = await z.file(name)!.async('string');
+    if (/<script[\s>]/i.test(src) || /\son[a-z]+\s*=/i.test(src) || /javascript:/i.test(src)) return fail(`Conteúdo activo (scripts/handlers) em ${name} não é permitido`);
+  }
   return { ok: true, metadata: { title, language: pick(/<dc:language[^>]*>([^<]+)</), identifier: pick(/<dc:identifier[^>]*>([^<]+)</), opf: opfPath, drm: z.file('META-INF/encryption.xml') ? 'encryption.xml presente' : 'none' } };
 }
 

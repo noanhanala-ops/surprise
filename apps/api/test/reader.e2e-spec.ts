@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { randomUUID } from 'crypto';
-import { setup, publishBook, makeRichEpub, auth, Ctx } from './helpers';
+import { setup, publishBook, makeRichEpub, auth, sha, Ctx } from './helpers';
 
 describe('Servidor de publicação Readium: manifesto, posições e recursos (e2e)', () => {
   let ctx: Ctx; let admin: any, pub: any, buyer: any, stranger: any; let ed: any; let base: string; let readToken: string;
@@ -20,6 +20,23 @@ describe('Servidor de publicação Readium: manifesto, posições e recursos (e2
     expect(g.manifest_url).toMatch(/^\/v1\/read\/.+\/manifest\.json$/);
   });
   afterAll(async () => { await ctx.pool.end(); await ctx.app.close(); });
+
+  it('capa pública: listada no catálogo e servida com o tipo real; invisível se o livro sair da loja', async () => {
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(24, 7)]);
+    const draft = (await request(ctx.http).post('/v1/publisher/books').set(auth(pub.token)).send({ publisher_id: ed.publisherId, title: `Capa ${ctx.run}`, language_code: 'pt', prices: [{ currency: 'USD', amount_minor: 100 }] }).expect(201)).body.edition_id;
+    const intent = (await request(ctx.http).post(`/v1/publisher/books/${draft}/assets`).set(auth(pub.token)).send({ kind: 'COVER', mime_type: 'image/png', size_bytes: png.length, checksum_sha256: sha(png) }).expect(201)).body;
+    await request(ctx.http).put(new URL(intent.url).pathname).set('Content-Type', 'application/octet-stream').send(png).expect(201);
+    await request(ctx.http).get(`/v1/covers/${draft}`).set('x-country', 'MZ').expect(404); // rascunho: não público
+    const list = (await request(ctx.http).get('/v1/books?limit=100').set('x-country', 'MZ')).body.items;
+    expect(list.find((b: any) => b.edition_id === ed.editionId).cover_url).toBeNull(); // este livro não tem capa
+    // publicar um livro com capa
+    const b2 = await publishBook(ctx, admin, pub, { title: `ComCapa ${ctx.run}`, usd: 200, publisherId: ed.publisherId, cover: png });
+    const c = await request(ctx.http).get(`/v1/covers/${b2.editionId}`).set('x-country', 'MZ').buffer(true).parse((res, cb) => { const ch: Buffer[] = []; res.on('data', (d: Buffer) => ch.push(d)); res.on('end', () => cb(null, Buffer.concat(ch))); }).expect(200).expect('Content-Type', 'image/png').expect('Cache-Control', /public/);
+    expect(Buffer.compare(c.body, png)).toBe(0);
+    expect((await request(ctx.http).get(`/v1/books/${b2.slug}`).set('x-country', 'MZ')).body.cover_url).toBe(`/v1/covers/${b2.editionId}`);
+    await request(ctx.http).post(`/v1/admin/books/${b2.editionId}/suspend`).set(auth(admin.token)).send({ reason: 'teste capa' }).expect(204);
+    await request(ctx.http).get(`/v1/covers/${b2.editionId}`).set('x-country', 'MZ').expect(404);
+  });
 
   it('sem direito não há token de leitura', async () => {
     await request(ctx.http).get(`/v1/library/${ed.editionId}/access`).set(auth(stranger.token)).expect(403);

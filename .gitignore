@@ -5,3 +5,6 @@ dist/
 .env.*
 !.env.example
 *.log
+next-env.d.ts
+.storage/
+*.tsbuildinfo

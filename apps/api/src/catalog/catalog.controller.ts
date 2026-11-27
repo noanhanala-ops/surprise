@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { Controller, Get, Headers, Param, ParseUUIDPipe, Query, Res } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 
 /** País do pedido: cabeçalho do CDN (Cloudflare) ou `x-country` (testes). Desconhecido => 'ZZ' (só contratos mundiais). */
@@ -13,5 +13,10 @@ export class CatalogController {
   }
   @Get('books/:slug') get(@Headers() h: any, @Param('slug') slug: string, @Query('currency') currency?: string) { return this.svc.bySlug(slug, country(h), cur(currency)); }
   @Get('books/:id/editions') editions(@Headers() h: any, @Param('id', ParseUUIDPipe) id: string, @Query('currency') currency?: string) { return this.svc.editions(id, country(h), cur(currency)); }
+  @Get('covers/:editionId')
+  async cover(@Headers() h: any, @Param('editionId', ParseUUIDPipe) id: string, @Res() res: any) {
+    const c = await this.svc.cover(id, country(h));
+    res.set('Content-Type', c.type).set('X-Content-Type-Options', 'nosniff').set('Cache-Control', 'public, max-age=3600').send(c.data);
+  }
   @Get('categories') categories() { return this.svc.categories(); }
 }

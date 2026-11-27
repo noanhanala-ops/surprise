@@ -15,7 +15,8 @@ import { EventBus } from './events/event-bus';
 import { FakeProvider } from './payments/fake.provider';
 import { ProviderRegistry } from './payments/provider.registry';
 import { PaymentsService } from './payments/payments.service';
-import { DevController } from './payments/dev.controller';
+import { NotificationsConsumer } from './notifications/notifications.consumer';
+import { DevController, DevMailController } from './payments/dev.controller';
 import { PaymentsController } from './payments/payments.controller';
 import { CommerceService } from './commerce/commerce.service';
 import { CommerceController } from './commerce/commerce.controller';
@@ -44,8 +45,8 @@ class HealthController {
 
 @Module({
   imports: [DbModule, EventsModule, IdentityModule],
-  controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController, CommerceController, PaymentsController, EntitlementsController, ReadingController, ReaderController, DevController],
+  controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController, CommerceController, PaymentsController, EntitlementsController, ReadingController, ReaderController, DevController, DevMailController],
   providers: [PublisherService, AdminService, CatalogService, UploadService, FakeProvider, ProviderRegistry, PaymentsService, CommerceService, RefundsService,
-    EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, ReadingService, ReaderService, storageProvider],
+    EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, ReadingService, ReaderService, NotificationsConsumer, storageProvider],
 })
 export class AppModule {}

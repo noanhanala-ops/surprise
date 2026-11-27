@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { Pool } from 'pg';
 
+import JSZip from 'jszip';
 import { sha, makeEpub } from './helpers';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/setup';
@@ -97,6 +98,10 @@ describe('Catalog / Publisher / Content / Admin (e2e, PostgreSQL real)', () => {
   it('EPUB válido fica READY com metadados; capa PNG aceite', async () => {
     const r = await upload('EPUB', await makeEpub('Terra Sonâmbula'));
     expect(r.status).toBe(201); expect(r.body.metadata.title).toBe('Terra Sonâmbula'); expect(r.body.status).toBe('READY');
+    const scripted = new JSZip(); const base = await JSZip.loadAsync(await makeEpub('Com Script'));
+    for (const [n, f] of Object.entries(base.files)) if (!f.dir) scripted.file(n, await f.async('nodebuffer'), n === 'mimetype' ? { compression: 'STORE' } : {});
+    scripted.file('OEBPS/c1.xhtml', '<html xmlns="http://www.w3.org/1999/xhtml"><body><script>fetch("/x")</script></body></html>');
+    const sr = await upload('EPUB', await scripted.generateAsync({ type: 'nodebuffer' })); expect(sr.status).toBe(422); expect(sr.body.message).toMatch(/scripts/);
     const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);
     expect((await upload('COVER', png)).status).toBe(201);
   });
