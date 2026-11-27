@@ -82,3 +82,35 @@ jobs:
       - run: npm run typecheck -w @drp/web
       - run: npm run build -w @drp/web
         env: { API_URL: "http://localhost:3001" }
+  e2e-browser:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: ci }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: "postgres://postgres:ci@localhost:5432/postgres"
+      JWT_SECRET: ci-secret-ci-secret-ci-secret-1234567
+      SANDBOX_MODE: "true"
+      API_URL: "http://localhost:3001"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: database/migrate.sh --seed
+      - run: npm ci
+      - run: npm run build -w @drp/contracts && npm run build -w @drp/api && npm run build -w @drp/web
+      - name: Arrancar API e web
+        run: |
+          (cd apps/api && PORT=3001 node dist/main.js > /tmp/api.log 2>&1 &)
+          (cd apps/web/storefront && npm start > /tmp/web.log 2>&1 &)
+          for i in $(seq 1 60); do curl -sf localhost:3001/v1/health && curl -sf localhost:3000/ -o /dev/null && break; sleep 1; done
+      - run: npm run seed:demo -w @drp/api
+      - name: Chromium (Playwright; não fica nas dependências do projecto)
+        run: npm i --no-save playwright && npx playwright install --with-deps chromium
+      - run: npm run e2e:web
+      - if: failure()
+        run: tail -n 50 /tmp/api.log /tmp/web.log

@@ -7,6 +7,17 @@ import { parseEpub, ParsedPublication } from './epub-publication';
 interface Cached { zip: JSZip; pub: ParsedPublication }
 const MAX_CACHE = Number(process.env.READER_CACHE_ENTRIES ?? 8);
 
+/**
+ * O Readium assume que cada documento tem <head> (a spec EPUB exige-o, mas há EPUBs reais sem ele).
+ * Normalizamos na entrega em vez de rejeitar o livro: insere um <head> vazio logo após <html>.
+ */
+export function ensureHead(buf: Buffer): Buffer {
+  const src = buf.toString('utf8');
+  if (/<head[\s>\/]/i.test(src)) return buf;
+  const out = src.replace(/(<html\b[^>]*>)/i, '$1<head><title></title></head>');
+  return out === src ? buf : Buffer.from(out, 'utf8');
+}
+
 /** Servidor de publicação controlado (ADR-0007): só serve recursos do EPUB a quem tem direito ACTIVE no momento do pedido. */
 @Injectable()
 export class ReaderService {
@@ -36,6 +47,8 @@ export class ReaderService {
     if (path.includes('..')) throw new ForbiddenException();
     const res = pub.resources.get(path); const file = res && zip.file(path);
     if (!res || !file) throw new NotFoundException();
-    return { type: res.type, data: await file.async('nodebuffer') };
+    let data = await file.async('nodebuffer');
+    if (res.type === 'application/xhtml+xml' || res.type === 'text/html') data = ensureHead(data);
+    return { type: res.type, data };
   }
 }

@@ -13,7 +13,7 @@ Estado: ✅ automatizado e a passar · 🟡 especificado, a implementar com o m�
 | AC-07 | Webhook duplicado | ✅ | `commerce.e2e-spec.ts` (duplicado, assinatura inválida, replay) |
 | AC-08 | Direito único | ✅ | `commerce.e2e-spec.ts` (re-entrega, compras concorrentes) |
 | AC-09 | Livro fora do catálogo continua acessível | ✅ | `commerce.e2e-spec.ts` (suspenso: biblioteca e leitura mantidas) |
-| AC-10 | Sync de progresso | ✅ (API) | `reading.e2e-spec.ts` (dispositivo desactualizado → 409 sem sobrescrever; 4 escritas concorrentes → 1 vence). Falta teste com apps reais |
+| AC-10 | Sync de progresso | ✅ (web) | API: `reading.e2e-spec.ts`; **browser real com 2 dispositivos**: `tests/e2e/reader-flow.test.mjs` (409 + aviso, sem sobrescrever). Falta Android/iOS |
 | AC-11 | Reembolso auditável | ✅ (total por artigo) | `commerce.e2e-spec.ts`. Parcial por valor ainda não suportado |
 | AC-12 | Royalties por contrato | ✅ (bruto) | `commerce.e2e-spec.ts` (70% de 999 = 699; estorno no reembolso). Impostos/taxas PSP ainda não deduzidos |
 | AC-13 | Bucket privado | 🟡 | Acesso a ficheiros só via API (direito revalidado) ou URL pré-assinada curta ✅ (`full-stack.infra-spec.ts`); falta IaC/política do bucket e teste de acesso anónimo |

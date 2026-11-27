@@ -53,14 +53,24 @@ describe('Reading: progresso sincronizado, anotações e preferências (e2e, Pos
     expect((await request(ctx.http).get(`/v1/reading/${editionId}/progress`).set(auth(reader.token))).body.progress_percent).toBe(60); // não foi sobrescrito
   });
 
+  it('gravação idêntica ao estado actual é no-op: não sobe a versão (evita conflitos falsos ao abrir noutro dispositivo)', async () => {
+    const cur = (await request(ctx.http).get(`/v1/reading/${editionId}/progress`).set(auth(reader.token)).expect(200)).body;
+    const same = await prog(reader, { locator: cur.locator, progress_percent: cur.progress_percent, base_version: cur.version }).expect(200);
+    expect(same.body.version).toBe(cur.version);
+    const moved = await prog(reader, { locator: L('c7.xhtml', 0.5), progress_percent: cur.progress_percent + 1, base_version: cur.version }).expect(200);
+    expect(moved.body.version).toBe(cur.version + 1); // uma mudança real continua a subir
+    await prog(reader, { locator: cur.locator, progress_percent: cur.progress_percent, base_version: cur.version }).expect(409); // versão antiga com conteúdo diferente do actual
+  });
+
   it('primeira escrita repetida (base_version 0) também dá conflito', async () => {
     await prog(reader, { locator: L('c9.xhtml'), progress_percent: 99, base_version: 0 }).expect(409);
   });
 
   it('escritas concorrentes com a mesma versão base: exactamente uma vence', async () => {
-    const rs = await Promise.all([1, 2, 3, 4].map((i) => prog(reader, { locator: L(`c${i}.xhtml`), progress_percent: 60 + i, base_version: 2 })));
+    const base = (await request(ctx.http).get(`/v1/reading/${editionId}/progress`).set(auth(reader.token)).expect(200)).body.version;
+    const rs = await Promise.all([1, 2, 3, 4].map((i) => prog(reader, { locator: L(`c${i}.xhtml`), progress_percent: 60 + i, base_version: base })));
     expect(rs.filter((r) => r.status === 200)).toHaveLength(1); expect(rs.filter((r) => r.status === 409)).toHaveLength(3);
-    expect((await request(ctx.http).get(`/v1/reading/${editionId}/progress`).set(auth(reader.token))).body.version).toBe(3);
+    expect((await request(ctx.http).get(`/v1/reading/${editionId}/progress`).set(auth(reader.token))).body.version).toBe(base + 1);
   });
 
   it('isolamento: o progresso de um utilizador é independente do de outro', async () => {

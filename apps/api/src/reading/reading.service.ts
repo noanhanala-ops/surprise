@@ -45,6 +45,11 @@ export class ReadingService {
     await this.assertAccess(userId, editionId);
     const device = `(SELECT id FROM user_devices WHERE id=$6 AND user_id=$1 AND revoked_at IS NULL)`;
     const params = [userId, editionId, JSON.stringify(b.locator), b.progress_percent, b.client_updated_at ?? null, b.device_id ?? null];
+    // Gravação idêntica ao estado actual (mesma versão base): no-op — não sobe a versão, para que abrir o livro noutro
+    // dispositivo ou repetir um pedido não provoque conflitos falsos nos restantes.
+    const cur0 = (await this.db.query(`SELECT * FROM reading_progress WHERE user_id=$1 AND edition_id=$2`, [userId, editionId])).rows[0];
+    if (cur0 && Number(cur0.version) === b.base_version && Number(cur0.progress_percent) === Math.round(b.progress_percent * 100) / 100
+        && JSON.stringify(cur0.locator_json) === JSON.stringify(JSON.parse(JSON.stringify(b.locator)))) return this.shape(cur0);
     let r;
     if (b.base_version === 0) {
       r = await this.db.query(

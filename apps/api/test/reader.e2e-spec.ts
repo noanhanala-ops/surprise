@@ -66,7 +66,8 @@ describe('Servidor de publicação Readium: manifesto, posições e recursos (e2
 
   it('serve recursos declarados com o tipo certo (incl. nomes com espaço) e nunca ficheiros internos', async () => {
     expect((await get('OEBPS/c1.xhtml').expect(200).expect('Content-Type', /application\/xhtml\+xml/).expect('X-Content-Type-Options', 'nosniff')).text).toContain('<h1>Um</h1>');
-    expect((await get('OEBPS/cap%20dois.xhtml').expect(200)).text).toContain('Dois');
+    const dois = (await get('OEBPS/cap%20dois.xhtml').expect(200)).text; expect(dois).toContain('Dois'); expect(dois).toMatch(/<head><title><\/title><\/head>/); // fixture sem <head>: normalizado
+    expect((await get('OEBPS/c1.xhtml')).text.match(/<head/g)).toHaveLength(1); // quem já tem <head> não é alterado
     await get('OEBPS/style.css').expect(200).expect('Content-Type', /text\/css/);
     await get('OEBPS/images/cover.png').expect(200).expect('Content-Type', 'image/png');
     await get('META-INF/encryption.xml').expect(404); await get('META-INF/container.xml').expect(404); await get('mimetype').expect(404);
