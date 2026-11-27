@@ -11,3 +11,6 @@ Reutilizar como dependências: Readium (leitor), PDF.js, NestJS, OpenSearch. Boo
 
 ## Consequências
 + Menos código a escrever, sem contaminação AGPL. − Cada dependência nova passa por revisão de licença.
+
+## Adenda (2026-11-27) — verificação de licenças
+Verificadas as licenças reais: Readium ts-toolkit/go-toolkit/web = BSD-3 (utilizáveis); BookOrbit = AGPL-3.0 + termos adicionais; Trove = AGPL-3.0; Kavita = GPL-3.0; Calibre-Web = GPL-3.0 (todos só referência). Detalhe e justificação em `docs/architecture/OPEN_SOURCE_REUSE.md`.

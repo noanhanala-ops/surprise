@@ -4,7 +4,7 @@ Livraria digital global com marketplace de editoras/autores, **compra individual
 Monólito modular (NestJS) + workers · PostgreSQL · Redis · RabbitMQ · S3 · OpenSearch · Readium + PDF.js.
 
 ## Estado
-Pacote de engenharia da **Fase 0** (preparação) — sem código de aplicação ainda. Já validado:
+Fase 0 concluída; **Fase 1 iniciada** (módulo Identity). Já validado:
 
 | Artefacto | Local | Validação |
 |---|---|---|
@@ -13,6 +13,8 @@ Pacote de engenharia da **Fase 0** (preparação) — sem código de aplicação
 | Contrato OpenAPI 3 (55 operações) | `docs/api/openapi.yaml` | `scripts/check_openapi.py` |
 | 9 ADRs | `docs/adr` | — |
 | Arquitectura, comércio, entitlements, continuidade, ERD, rastreio AC-01…18 | `docs/` | — |
+| **API NestJS — módulo Identity** (registo, verificação de e-mail via outbox, login Argon2id, refresh com rotação e deteção de reutilização, dispositivos) | `apps/api` | 10 testes e2e em PostgreSQL real |
+| Análise de licenças dos 5 repositórios indicados | `docs/architecture/OPEN_SOURCE_REUSE.md` | licenças lidas dos LICENSE |
 | Contratos TS (PaymentProvider, eventos) | `packages/contracts` | — |
 | Docker Compose de dev, CI | `docker-compose.yml`, `.github/workflows` | — |
 
@@ -26,7 +28,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/tests/invariants.sql
 
 ## Próxima milestone (demo vertical)
 Admin publica um EPUB licenciado → utilizador regista-se → compra em sandbox (`FakeProvider`) → webhook → entitlement permanente → lê no browser (Readium Web).
-Ordem sugerida: Identity → Catalog/Content (upload+validação EPUB) → Commerce/Payments(+outbox) → Entitlements → Reader web.
+Ordem sugerida: ~~Identity~~ ✅ → Catalog/Content (upload+validação EPUB) → Commerce/Payments(+outbox) → Entitlements → Reader web.
 
 ## Notas
 - `index.html` na raiz é uma página pessoal pré-existente, alheia à plataforma; não foi alterada.

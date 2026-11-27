@@ -11,3 +11,6 @@ As migrações SQL em `database/migrations` são a fonte de verdade do esquema. 
 
 ## Consequências
 + Invariantes garantidas pela BD (não só pela aplicação). − Revisão de migrações SQL manual; o `schema.prisma` é derivado, não editado à mão.
+
+## Adenda (2026-11-27) — acesso a dados SQL-first
+Na implementação do módulo Identity optou-se por `pg` com SQL explícito (classe `DbService`, transacções via `tx()`), em vez de Prisma: as operações críticas dependem de `ON CONFLICT`, `FOR UPDATE`, índices parciais e `UPDATE … WHERE version = :n`, que ficam mais claras e testáveis em SQL. Prisma pode ser reintroduzido de forma pontual (leituras de catálogo) sem alterar o esquema, que continua a ser definido em `database/migrations`.
