@@ -8,7 +8,7 @@ Pacote de engenharia da **Fase 0** (preparação) — sem código de aplicação
 
 | Artefacto | Local | Validação |
 |---|---|---|
-| DDL PostgreSQL (5 migrações, 80+ tabelas) + seeds RBAC | `database/migrations`, `database/seeds` | aplicado em PostgreSQL 16 |
+| DDL PostgreSQL (5 migrações, 58 tabelas + 1 vista) + seeds RBAC | `database/migrations`, `database/seeds` | aplicado em PostgreSQL 16 |
 | Invariantes de BD (24 testes) | `database/tests/invariants.sql` | passam |
 | Contrato OpenAPI 3 (55 operações) | `docs/api/openapi.yaml` | `scripts/check_openapi.py` |
 | 9 ADRs | `docs/adr` | — |
