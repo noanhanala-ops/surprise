@@ -1,0 +1,9 @@
+{
+  "name": "Digital Reading Platform (demo)",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
+  "features": { "ghcr.io/devcontainers/features/docker-in-docker:2": {} },
+  "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client",
+  "forwardPorts": [3000],
+  "portsAttributes": { "3000": { "label": "Loja (demo)", "onAutoForward": "openBrowser" }, "3001": { "label": "API" } },
+  "hostRequirements": { "cpus": 2 }
+}

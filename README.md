@@ -3,6 +3,14 @@
 Livraria digital global com marketplace de editoras/autores, **compra individual**, **direito de leitura permanente** e leitor integrado (Web, Android, iOS).
 Monólito modular (NestJS) + workers · PostgreSQL · Redis · RabbitMQ · S3 · OpenSearch · Readium + PDF.js.
 
+## Ver a plataforma a funcionar (demonstração)
+
+**GitHub Codespaces (no browser):** no GitHub, *Code → Codespaces → Create codespace on `claude/digital-reading-platform-bnt582`*; no terminal do Codespace corre `scripts/demo.sh` (≈3 min na primeira vez) e abre a porta **3000** no separador *Portas*.
+
+**No teu computador** (Node ≥ 22, Docker, `psql`): `scripts/demo.sh` e abre http://localhost:3000.
+
+Contas (palavra-passe `demo-password-123`): `leitor@demo.test` (comprar e ler), `editora@demo.test` (portal da editora), `admin@demo.test` (backoffice; exige MFA: o segredo TOTP e os códigos de recuperação são impressos pelo script e guardados em `.demo/seed.log`). Pagamentos são simulados (`SANDBOX_MODE`); os e-mails de verificação/recuperação aparecem como ligações no ecrã. Não usar em produção.
+
 ## Estado
 **CI verificado no GitHub Actions** (run #6, 6/6 jobs verdes): base de dados, contratos OpenAPI, API (99 testes), web (typecheck+build), infra real (RabbitMQ, Redis, S3 emulado: 20 testes) e E2E no Chromium (30 testes). Corre em `pull_request`, `push` para `main`/`claude/**` e manualmente.
 
