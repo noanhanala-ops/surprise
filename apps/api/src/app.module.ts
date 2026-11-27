@@ -10,6 +10,18 @@ import { CatalogController } from './catalog/catalog.controller';
 import { CatalogService } from './catalog/catalog.service';
 import { UploadController } from './content/upload.controller';
 import { UploadService } from './content/upload.service';
+import { EventsModule } from './events/events.module';
+import { FakeProvider } from './payments/fake.provider';
+import { ProviderRegistry } from './payments/provider.registry';
+import { PaymentsService } from './payments/payments.service';
+import { PaymentsController } from './payments/payments.controller';
+import { CommerceService } from './commerce/commerce.service';
+import { CommerceController } from './commerce/commerce.controller';
+import { RefundsService } from './commerce/refunds.service';
+import { EntitlementsConsumer } from './entitlements/entitlements.consumer';
+import { EntitlementsService } from './entitlements/entitlements.service';
+import { EntitlementsController } from './entitlements/entitlements.controller';
+import { RoyaltyConsumer } from './royalty/royalty.consumer';
 import { LocalStorageService, StorageService } from './storage/storage.service';
 
 @Controller('health')
@@ -19,8 +31,9 @@ class HealthController {
 }
 
 @Module({
-  imports: [DbModule, IdentityModule],
-  controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController],
-  providers: [PublisherService, AdminService, CatalogService, UploadService, { provide: StorageService, useClass: LocalStorageService }],
+  imports: [DbModule, EventsModule, IdentityModule],
+  controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController, CommerceController, PaymentsController, EntitlementsController],
+  providers: [PublisherService, AdminService, CatalogService, UploadService, FakeProvider, ProviderRegistry, PaymentsService, CommerceService, RefundsService,
+    EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, { provide: StorageService, useClass: LocalStorageService }],
 })
 export class AppModule {}

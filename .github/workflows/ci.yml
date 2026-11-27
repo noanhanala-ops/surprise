@@ -37,5 +37,6 @@ jobs:
         with: { node-version: 22 }
       - run: database/migrate.sh --seed
       - run: npm ci
+      - run: npm run build -w @drp/contracts
       - working-directory: apps/api
         run: npx tsc --noEmit && npx jest --runInBand

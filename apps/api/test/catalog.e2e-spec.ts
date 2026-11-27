@@ -2,27 +2,10 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { Pool } from 'pg';
-import JSZip from 'jszip';
-import { createHash } from 'crypto';
-import { tmpdir } from 'os';
-import { join } from 'path';
 
-process.env.JWT_SECRET = 'test-secret-test-secret-test-secret-123';
-process.env.DATABASE_URL ??= 'postgres://postgres@localhost:5544/drp';
-process.env.STORAGE_DIR = join(tmpdir(), `drp-storage-${Date.now()}`);
-
+import { sha, makeEpub } from './helpers';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/setup';
-
-const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
-async function makeEpub(title: string, opts: { badMimetype?: boolean } = {}) {
-  const z = new JSZip();
-  z.file('mimetype', opts.badMimetype ? 'text/plain' : 'application/epub+zip');
-  z.file('META-INF/container.xml', '<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>');
-  z.file('OEBPS/content.opf', `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${title}</dc:title><dc:language>pt</dc:language><dc:identifier>urn:uuid:1</dc:identifier></metadata><manifest><item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="c1"/></spine></package>`);
-  z.file('OEBPS/c1.xhtml', '<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Olá</p></body></html>');
-  return z.generateAsync({ type: 'nodebuffer', mimeType: 'application/epub+zip' });
-}
 
 describe('Catalog / Publisher / Content / Admin (e2e, PostgreSQL real)', () => {
   let app: INestApplication; let pool: Pool; let http: any;
