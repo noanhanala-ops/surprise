@@ -42,3 +42,13 @@ footer { color:var(--muted); text-align:center; padding:24px; font-size:.85rem; 
 .row { display:flex; gap:12px; flex-wrap:wrap; align-items:end; } .row > label { flex:1; min-width:160px; } textarea { font:inherit; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); width:100%; min-height:90px; }
 form.wide { display:grid; gap:14px; max-width:720px; } .badge { display:inline-block; font-size:.75rem; padding:1px 9px; border-radius:99px; background:var(--line); } .badge.ok { background:#d7f0e0; color:#1d5d3a; } .badge.bad { background:#f8d7d3; color:#8a1f16; } .badge.wait { background:#fff3cd; color:#664d03; }
 progress { width:100%; height:8px; }
+
+.rd-sel { position:absolute; left:50%; bottom:64px; transform:translateX(-50%); z-index:5; display:flex; gap:8px; align-items:center; flex-wrap:wrap; max-width:92vw; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:12px; padding:8px 12px; box-shadow:0 6px 22px rgba(0,0,0,.25); }
+.rd-sel button { background:transparent; color:inherit; border:1px solid rgba(127,127,127,.4); padding:4px 10px; border-radius:6px; } .rd-sel input { min-width:200px; } .rd-sel-text { font-style:italic; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rd-swatch { width:26px; height:26px; padding:0!important; border-radius:50%!important; border:2px solid rgba(0,0,0,.25)!important; }
+.rd-hl { display:block!important; border-bottom:1px solid rgba(127,127,127,.25); padding:8px 0; } .rd-hl[data-focused] { background:rgba(255,224,102,.18); }
+.rd-colors { display:flex; gap:6px; margin:6px 0; } .rd-colors button { width:18px; height:18px; padding:0!important; border-radius:50%!important; } .rd-colors button[aria-pressed=true] { outline:2px solid currentColor; }
+.rd-note textarea { width:100%; min-height:48px; background:transparent; color:inherit; } .rd-note button { margin-top:4px; }
+.pdf-shell { background:#e9e5df; color:#222; } @media (prefers-color-scheme: dark) { .pdf-shell { background:#2a2623; color:#eee; } }
+.pdf-holder { flex:1; overflow:auto; display:flex; justify-content:center; padding:16px; } .pdf-holder canvas { background:#fff; box-shadow:0 2px 14px rgba(0,0,0,.3); height:fit-content; }
+.pdf-goto { display:flex; gap:4px; align-items:center; white-space:nowrap; } .pdf-goto input { width:64px; padding:3px 6px; }

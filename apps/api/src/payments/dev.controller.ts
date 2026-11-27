@@ -33,6 +33,14 @@ export class DevController {
 @Controller('dev')
 export class DevMailController {
   constructor(private db: DbService) {}
+  @Get('reset-token')
+  async resetToken(@Query('email') email: string, @Query('since') since?: string) {
+    sandboxOnly();
+    // `since`: só notificações criadas depois do pedido (senão, antes de o novo chegar do outbox, devolvia-se um token antigo já inválido).
+    const r = await this.db.query(`SELECT n.payload->>'token' AS token FROM notifications n JOIN users u ON u.id=n.user_id WHERE u.email=$1 AND n.template='reset_password' AND ($2::timestamptz IS NULL OR n.created_at >= $2) ORDER BY n.created_at DESC LIMIT 1`, [email ?? '', since && !isNaN(+new Date(since)) ? since : null]);
+    if (!r.rowCount) throw new NotFoundException();
+    return { token: r.rows[0].token };
+  }
   @Get('verification-token')
   async token(@Query('email') email: string) {
     sandboxOnly();

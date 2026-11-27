@@ -25,3 +25,8 @@ Destaques e notas na UI (a API já existe; usar a Decorator API do Readium) · p
 
 ## Testes
 `tests/e2e/reader-flow.test.mjs` (Chromium real, pilha completa): abertura, retoma, índice, marcadores, preferências, **dois dispositivos com conflito**, acesso sem sessão.
+
+## Adenda: destaques, notas e PDF
+
+- **Destaques/notas (EPUB):** selecção → barra com cores e «Adicionar nota»; desenhados via Decorator API do Readium; o localizador guarda `text` e `locations.domRange` (caminho CSS) para ancorar a ocorrência certa em textos repetidos. Painel «Notas» para editar/apagar; `PUT /reading/{id}/highlights/{id}` altera cor/nota.
+- **PDF:** leitor PDF.js (Apache-2.0) com canvas, paginação, zoom, marcadores por página e progresso sincronizado com a mesma regra compare-and-set (409 → aviso, nunca sobrescrita silenciosa). Ficheiro servido por `/content/{token}` com direito revalidado.

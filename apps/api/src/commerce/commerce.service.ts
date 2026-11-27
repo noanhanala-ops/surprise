@@ -64,10 +64,14 @@ export class CommerceService {
   async getOrder(userId: string, orderId: string) {
     const o = await this.db.query(`SELECT * FROM orders WHERE id=$1 AND user_id=$2`, [orderId, userId]);
     if (!o.rowCount) throw new NotFoundException();
-    const it = await this.db.query(`SELECT id, edition_id, unit_price_minor, discount_minor, tax_minor FROM order_items WHERE order_id=$1 ORDER BY id`, [orderId]);
+    const it = await this.db.query(
+      `SELECT oi.id, oi.edition_id, b.title, b.slug, oi.unit_price_minor, oi.discount_minor, oi.tax_minor,
+              (SELECT r.status::text FROM refunds r WHERE r.order_item_id=oi.id ORDER BY r.created_at DESC LIMIT 1) AS refund_status,
+              (SELECT en.status::text FROM entitlements en WHERE en.order_item_id=oi.id) AS entitlement_status
+         FROM order_items oi JOIN book_editions e ON e.id=oi.edition_id JOIN books b ON b.id=e.book_id WHERE oi.order_id=$1 ORDER BY oi.id`, [orderId]);
     const r = o.rows[0];
     return { id: r.id, status: r.status, currency: r.currency, subtotal_minor: Number(r.subtotal_minor), tax_minor: Number(r.tax_minor), total_minor: Number(r.total_minor), created_at: r.created_at,
-      items: it.rows.map((i) => ({ id: i.id, edition_id: i.edition_id, unit_price_minor: Number(i.unit_price_minor), tax_minor: Number(i.tax_minor) })) };
+      items: it.rows.map((i) => ({ id: i.id, edition_id: i.edition_id, title: i.title, slug: i.slug, unit_price_minor: Number(i.unit_price_minor), tax_minor: Number(i.tax_minor), refund_status: i.refund_status, entitlement_status: i.entitlement_status })) };
   }
 
   async listOrders(userId: string, limit: number) {

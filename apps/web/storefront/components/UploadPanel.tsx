@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-const KINDS = { EPUB: { label: 'Ficheiro EPUB', accept: '.epub,application/epub+zip', mime: 'application/epub+zip' }, COVER: { label: 'Capa (PNG/JPEG/WebP)', accept: 'image/png,image/jpeg,image/webp', mime: '' } } as const;
+const KINDS = { PDF: { label: 'Ficheiro PDF', accept: '.pdf,application/pdf', mime: 'application/pdf' }, EPUB: { label: 'Ficheiro EPUB', accept: '.epub,application/epub+zip', mime: 'application/epub+zip' }, COVER: { label: 'Capa (PNG/JPEG/WebP)', accept: 'image/png,image/jpeg,image/webp', mime: '' } } as const;
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
 const bff = (path: string, body: unknown) => fetch(`/api/bff/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-requested-with': 'drp' }, body: JSON.stringify(body), cache: 'no-store' });
 
@@ -18,7 +18,7 @@ export default function UploadPanel({ editionId, disabled }: { editionId: string
     setBusy(kind); setMsg(null);
     try {
       const buf = await file.arrayBuffer(); const sha = hex(await crypto.subtle.digest('SHA-256', buf));
-      const mime = kind === 'EPUB' ? 'application/epub+zip' : file.type || 'application/octet-stream';
+      const mime = kind === 'EPUB' ? 'application/epub+zip' : kind === 'PDF' ? 'application/pdf' : file.type || 'application/octet-stream';
       const ir = await bff(`publisher/books/${editionId}/assets`, { kind, mime_type: mime, size_bytes: file.size, checksum_sha256: sha });
       if (!ir.ok) throw new Error((await ir.json().catch(() => ({})))?.message ?? `Pedido de upload recusado (${ir.status})`);
       const intent = await ir.json();

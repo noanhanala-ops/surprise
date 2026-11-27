@@ -16,6 +16,7 @@ class HighlightDto {
   @IsObject() locator: any; @IsString() @MaxLength(5000) selected_text: string;
   @IsOptional() @IsString() @MaxLength(30) color?: string; @IsOptional() @IsString() @MaxLength(10000) note?: string;
 }
+class HighlightPatchDto { @IsOptional() @IsString() @MaxLength(30) color?: string; @IsOptional() @IsString() @MaxLength(10000) note?: string; }
 class PrefsDto {
   @IsOptional() @IsString() @MaxLength(100) font_family?: string;
   @IsOptional() @IsInt() @Min(8) @Max(72) font_size?: number;
@@ -36,6 +37,7 @@ export class ReadingController {
   @Post(':editionId/bookmarks') bookmark(@CurrentUser() u: AuthUser, @Param('editionId', ParseUUIDPipe) e: string, @Body() b: BookmarkDto) { return this.svc.addBookmark(u.id, e, b.locator, b.title); }
   @Delete(':editionId/bookmarks/:id') @HttpCode(204) async delBookmark(@CurrentUser() u: AuthUser, @Param('editionId', ParseUUIDPipe) e: string, @Param('id', ParseUUIDPipe) id: string) { await this.svc.remove(u.id, e, 'bookmarks', id); }
   @Post(':editionId/highlights') highlight(@CurrentUser() u: AuthUser, @Param('editionId', ParseUUIDPipe) e: string, @Body() b: HighlightDto) { return this.svc.addHighlight(u.id, e, b.locator, b.selected_text, b.color, b.note); }
+  @Put(':editionId/highlights/:id') patchHighlight(@CurrentUser() u: AuthUser, @Param('editionId', ParseUUIDPipe) e: string, @Param('id', ParseUUIDPipe) id: string, @Body() b: HighlightPatchDto) { return this.svc.updateHighlight(u.id, e, id, b); }
   @Delete(':editionId/highlights/:id') @HttpCode(204) async delHighlight(@CurrentUser() u: AuthUser, @Param('editionId', ParseUUIDPipe) e: string, @Param('id', ParseUUIDPipe) id: string) { await this.svc.remove(u.id, e, 'highlights', id); }
   @Get(':editionId/annotations') annotations(@CurrentUser() u: AuthUser, @Param('editionId', ParseUUIDPipe) e: string, @Query('since') since?: string) { return this.svc.annotations(u.id, e, since); }
 }

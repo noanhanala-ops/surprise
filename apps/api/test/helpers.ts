@@ -12,7 +12,8 @@ process.env.DATABASE_URL ??= 'postgres://postgres@localhost:5544/drp';
 process.env.STORAGE_DIR ??= join(tmpdir(), `drp-storage-${Date.now()}`);
 process.env.SANDBOX_MODE = 'true';
 // Os limites por IP/conta são testados em security.e2e-spec.ts; aqui não atrapalham (todos os pedidos vêm de 127.0.0.1).
-for (const k of ['RATE_LOGIN_IP', 'RATE_REGISTER_IP']) process.env[k] ??= '100000';
+process.env.SESSION_CHECK_TTL_MS ??= '0'; // revogação de sessão imediata nos testes (sem cache)
+for (const k of ['RATE_LOGIN_IP', 'RATE_REGISTER_IP', 'RATE_FORGOT_IP']) process.env[k] ??= '100000';
 process.env.OUTBOX_POLL_MS = '0'; // testes accionam o relay explicitamente
 
 import { AppModule } from '../src/app.module';

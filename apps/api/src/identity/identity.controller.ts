@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Ip, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import { IdentityService } from './identity.service';
 import { CurrentUser, AuthUser, JwtAuthGuard } from './jwt-auth.guard';
-import { LoginDto, MfaCodeDto, MfaVerifyDto, RefreshDto, RegisterDto, VerifyEmailDto } from './dto';
+import { ForgotPasswordDto, ResetPasswordDto, LoginDto, MfaCodeDto, MfaVerifyDto, RefreshDto, RegisterDto, VerifyEmailDto } from './dto';
 
 @Controller()
 export class IdentityController {
@@ -9,6 +9,8 @@ export class IdentityController {
 
   @Post('auth/register') async register(@Body() dto: RegisterDto, @Ip() ip: string) { await this.svc.register(dto, ip); return { status: 'verification_email_queued' }; }
   @Post('auth/login') @HttpCode(200) login(@Body() dto: LoginDto, @Ip() ip: string) { return this.svc.login(dto, ip); }
+  @Post('auth/forgot-password') @HttpCode(202) async forgot(@Body() b: ForgotPasswordDto, @Ip() ip: string) { await this.svc.forgotPassword(b.email, ip); return { status: 'accepted' }; }
+  @Post('auth/reset-password') @HttpCode(204) async reset(@Body() b: ResetPasswordDto) { await this.svc.resetPassword(b.token, b.password); }
   @Post('auth/refresh') @HttpCode(200) refresh(@Body() dto: RefreshDto) { return this.svc.refresh(dto.refresh_token); }
   @Post('auth/verify-email') @HttpCode(204) async verify(@Body() dto: VerifyEmailDto) { await this.svc.verifyEmail(dto.token); }
   @UseGuards(JwtAuthGuard) @Post('auth/logout') @HttpCode(204) async logout(@CurrentUser() u: AuthUser) { await this.svc.logout(u.sessionId); }

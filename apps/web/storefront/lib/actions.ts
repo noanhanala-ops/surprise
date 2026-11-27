@@ -118,3 +118,27 @@ export async function mfaDisableAction(form: FormData) {
   catch (e) { return fail('/account/security', e instanceof ApiError && e.status === 403 ? 'Os administradores não podem desativar o MFA.' : e instanceof ApiError && e.status === 429 ? 'Demasiadas tentativas.' : 'Código inválido.'); }
   redirect('/account/security?disabled=1');
 }
+
+/** Pede o link de recuperação. A resposta é sempre a mesma (não revela se o e-mail existe). Em sandbox mostra o link "do e-mail". */
+export async function forgotPasswordAction(form: FormData) {
+  const email = field(form, 'email'); let link = ''; const since = new Date(Date.now() - 200).toISOString();
+  try {
+    await api('/auth/forgot-password', { token: null, body: { email } });
+    if (SANDBOX) { // sem transporte de e-mail real: expõe o link da notificação (só em sandbox, e só se a conta existir)
+      for (let i = 0; i < 12 && !link; i++) {
+        const t = await api<{ token: string }>(`/dev/reset-token?email=${encodeURIComponent(email)}&since=${encodeURIComponent(since)}`, { token: null }).then((r) => r.token, () => undefined);
+        if (t) link = `/reset-password?token=${encodeURIComponent(t)}`; else await new Promise((r) => setTimeout(r, 300));
+      }
+    }
+  } catch (e) { if (e instanceof ApiError && e.status === 429) return fail('/forgot-password', 'Demasiados pedidos. Tente de novo mais tarde.'); return fail('/forgot-password', msg(e)); }
+  redirect(`/forgot-password?sent=1${link ? `&sandbox_link=${encodeURIComponent(link)}` : ''}`);
+}
+
+export async function resetPasswordAction(form: FormData) {
+  const token = field(form, 'token'); const pw = String(form.get('password') ?? ''); const back2 = (m: string) => fail('/reset-password', m, `&token=${encodeURIComponent(token)}`);
+  if (pw !== String(form.get('confirm') ?? '')) return back2('As palavras-passe não coincidem.');
+  try { await api('/auth/reset-password', { token: null, body: { token, password: pw } }); }
+  catch (e) { if (e instanceof ApiError && e.status === 400) return fail('/forgot-password', 'Este link é inválido, expirou ou já foi usado. Peça um novo.'); return back2(msg(e)); }
+  const jar = await cookies(); clearTokens(jar); // todas as sessões foram revogadas no servidor
+  redirect('/login?reset=1');
+}

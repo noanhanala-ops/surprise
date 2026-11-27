@@ -4,6 +4,7 @@ export function Tabs({ items, current }: { items: [string, string][]; current: s
   return <nav className="tabs" aria-label="Secções">{items.map(([href, label]) => <Link key={href} href={href} aria-current={current === href ? 'page' : undefined}>{label}</Link>)}</nav>;
 }
 export const PUBLISHER_TABS: [string, string][] = [['/publisher', 'Livros'], ['/publisher/sales', 'Vendas'], ['/publisher/royalties', 'Royalties'], ['/publisher/contracts', 'Contratos']];
+export const ACCOUNT_TABS: [string, string][] = [['/account/orders', 'Encomendas'], ['/account/security', 'Segurança']];
 export const ADMIN_TABS: [string, string][] = [['/admin', 'Resumo'], ['/admin/publishers', 'Editoras'], ['/admin/reviews', 'Revisão de livros'], ['/admin/refunds', 'Reembolsos']];
 
 export function Notice({ error, ok }: { error?: string; ok?: string }) {

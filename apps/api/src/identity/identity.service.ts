@@ -43,6 +43,40 @@ export class IdentityService {
     return { id: userId };
   }
 
+  /** Fingerprint do hash actual: o token deixa de servir assim que a palavra-passe muda (uso único). */
+  private fp = (hash: string) => createHash('sha256').update(hash).digest('hex').slice(0, 16);
+
+  /**
+   * Resposta SEMPRE igual (existe ou não a conta): não revela quem está registado. Limites por IP e por e-mail
+   * (o limite por e-mail é silencioso, para não permitir enumeração nem spam a uma vítima).
+   */
+  async forgotPassword(email: string, ip = 'unknown') {
+    const li = LIMITS.forgotIp(); const ih = await this.limiter.hit(`forgot:ip:${ip}`, li.limit, li.windowMs);
+    if (!ih.allowed) throw new RateLimitedException(ih.retryAfterSec);
+    const e = email.trim().toLowerCase(); const le = LIMITS.forgotEmail();
+    if (!(await this.limiter.hit(`forgot:email:${e}`, le.limit, le.windowMs)).allowed) return;
+    const u = (await this.db.query(`SELECT id, password_hash FROM users WHERE email=$1 AND status IN ('ACTIVE','PENDING_VERIFICATION') AND password_hash IS NOT NULL`, [e])).rows[0];
+    if (!u) return;
+    const token = await this.jwt.signAsync({ sub: u.id, purpose: 'reset-password', ph: this.fp(u.password_hash) }, { expiresIn: '1h' });
+    await this.db.query(`INSERT INTO outbox_events (aggregate_type, aggregate_id, event_type, payload) VALUES ('user',$1,'PasswordResetRequested',$2)`, [u.id, JSON.stringify({ userId: u.id, email: e, token })]);
+  }
+
+  /** Define a nova palavra-passe, revoga TODAS as sessões e limpa o bloqueio de falhas. O MFA (se existir) continua a ser exigido no login. */
+  async resetPassword(token: string, password: string) {
+    let p: { sub: string; purpose: string; ph: string };
+    try { p = await this.jwt.verifyAsync(token); } catch { throw new BadRequestException('Link inválido ou expirado'); }
+    if (p.purpose !== 'reset-password') throw new BadRequestException('Link inválido ou expirado');
+    const hash = await argon2.hash(password, ARGON);
+    await this.db.tx(async (c) => {
+      const u = (await c.query(`SELECT id, email, password_hash FROM users WHERE id=$1 FOR UPDATE`, [p.sub])).rows[0];
+      if (!u || !u.password_hash || this.fp(u.password_hash) !== p.ph) throw new BadRequestException('Link inválido ou expirado'); // já usado
+      await c.query(`UPDATE users SET password_hash=$2, email_verified_at=COALESCE(email_verified_at, now()), status=CASE WHEN status='PENDING_VERIFICATION' THEN 'ACTIVE'::user_status ELSE status END WHERE id=$1`, [u.id, hash]);
+      await c.query(`UPDATE refresh_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, [u.id]);
+      await c.query(`INSERT INTO audit_log (actor_id, actor_type, action, target_type, target_id) VALUES ($1,'USER','user.password_reset','user',$2)`, [u.id, String(u.id)]); // $1 uuid e $2 texto: o mesmo parâmetro não pode ter dois tipos
+      await this.limiter.reset(`login:fail:${String(u.email).toLowerCase()}`);
+    });
+  }
+
   async verifyEmail(token: string) {
     let p: { sub: string; purpose: string };
     try { p = await this.jwt.verifyAsync(token); } catch { throw new BadRequestException('Token inválido ou expirado'); }

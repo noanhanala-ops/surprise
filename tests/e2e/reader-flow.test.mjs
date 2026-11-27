@@ -115,3 +115,49 @@ test('sem sessão ou sem direito o leitor não abre', async () => {
   await anon.goto(`${BASE}/read/${editionId}`); assert.match(anon.url(), /\/login\?next=/);
   assert.equal((await anon.request.get(`${BASE}/v1/read/token-invalido/manifest.json`)).status(), 403);
 });
+
+test('DESTAQUES E NOTAS: seleccionar → destacar; nota no painel; persiste ao reabrir; mudar cor; nota pela barra; apagar', async () => {
+  const hlApi = async () => (await bffGet(A, `reading/${editionId}/annotations`)).body;
+  const goChapter1 = async () => { await A.click('button[aria-label="Índice"]'); await A.click('.rd-panel button:has-text("Capítulo Um")'); await until(async () => /Lorem/.test(await frameText(A)), 8000); await A.waitForTimeout(500); };
+  const visibleFrame = async (p) => { for (const f of p.frames().filter((x) => x !== p.mainFrame())) { if (await f.frameElement().then((e) => e.evaluate((n) => getComputedStyle(n).visibility === 'visible')).catch(() => false)) return f; } };
+  const decorations = async () => (await visibleFrame(A)).evaluate(() => window.CSS?.highlights?.size ?? 0);
+  // Onde o Readium pintou o destaque (CSS Highlight API) — para provar que cai na palavra seleccionada e não na 1.ª ocorrência do texto.
+  const decoRects = async () => (await visibleFrame(A)).evaluate(() => { const out = []; for (const [, h] of window.CSS.highlights) for (const r of h) { const b = r.getBoundingClientRect(); out.push({ top: b.top, left: b.left, text: r.toString(), startOffset: r.startOffset }); } return out; });
+  const selRect = async () => (await visibleFrame(A)).evaluate(() => { const b = getSelection().getRangeAt(0).getBoundingClientRect(); return { top: b.top, left: b.left, text: getSelection().toString() }; });
+  const selectWord = async (nth) => { await (await visibleFrame(A)).locator('p').nth(nth).dblclick(); await A.waitForSelector('[data-testid=selection-bar]'); return (await A.textContent('.rd-sel-text')).replace(/[“”]/g, '').trim(); };
+
+  await open(A); await goChapter1();
+  // dblclick no centro do parágrafo: a palavra escolhida está bem para lá da 1.ª ocorrência do mesmo texto
+  const word = await selectWord(0); assert.ok(word.length > 2, 'palavra seleccionada: ' + word); const where = await selRect();
+  await A.click('button[aria-label="Destacar a amarelo"]'); await A.waitForSelector('button:has-text("Notas (1)")');
+  assert.equal(await A.locator('[data-testid=selection-bar]').count(), 0, 'a barra fecha depois de destacar');
+  let ann = await hlApi(); assert.equal(ann.highlights.length, 1); const h = ann.highlights[0];
+  assert.equal(h.locator.text.highlight, word); assert.equal(h.color, 'yellow'); assert.ok(h.locator.text.before.length > 0 && h.locator.text.after.length > 0, 'guarda o contexto para localizar a ocorrência certa');
+  await until(async () => (await decorations()) >= 1); // desenhado no texto (CSS Highlight API do Readium)
+  { const d = (await decoRects())[0]; assert.equal(d.text, word); assert.ok(Math.abs(d.top - where.top) < 3 && Math.abs(d.left - where.left) < 3, `o destaque tem de cair na palavra seleccionada (${JSON.stringify(d)} vs ${JSON.stringify(where)}), não na 1.ª ocorrência`); }
+  assert.ok(h.locator.locations.domRange.start.charOffset >= 0 && h.locator.locations.domRange.start.cssSelector.startsWith('body'), 'guarda o domRange exacto');
+  if (SHOTS) await A.screenshot({ path: `${SHOTS}/15-destaque.png` });
+
+  // nota no painel
+  await A.click('button[aria-label="Destaques e notas"]'); await A.waitForSelector('[data-testid=highlight-item]');
+  await A.fill('[data-testid=highlight-item] textarea', 'Esta é a minha nota'); await A.click('[data-testid=highlight-item] button:has-text("Guardar nota")');
+  await until(async () => (await hlApi()).notes.some((n) => n.content === 'Esta é a minha nota' && !n.deleted_at));
+
+  // persiste ao reabrir (lista + destaque redesenhado)
+  await open(A); await A.waitForSelector('button:has-text("Notas (1)")'); await goChapter1(); await until(async () => (await decorations()) >= 1);
+  { const d = (await decoRects())[0]; assert.equal(d.startOffset, h.locator.locations.domRange.start.charOffset, 'ao reabrir, o destaque volta à mesma posição exacta'); }
+  await A.click('button[aria-label="Destaques e notas"]'); assert.equal(await A.inputValue('[data-testid=highlight-item] textarea'), 'Esta é a minha nota');
+
+  // mudar cor
+  await A.click('[data-testid=highlight-item] button[aria-label="Cor rosa"]'); await until(async () => (await hlApi()).highlights[0].color === 'pink');
+
+  // 2.º destaque, com nota escrita directamente na barra
+  await A.click('button[aria-label="Destaques e notas"]'); // fecha o painel
+  await selectWord(2); await A.click('button[aria-label="Adicionar nota"]'); await A.fill('input[aria-label="Texto da nota"]', 'Nota rápida'); await A.click('button[aria-label="Guardar nota"]');
+  await A.waitForSelector('button:has-text("Notas (2)")'); ann = await hlApi(); assert.equal(ann.highlights.length, 2); assert.ok(ann.notes.some((n) => n.content === 'Nota rápida'));
+
+  // apagar o primeiro: some do painel, do servidor e do texto
+  await A.click('button[aria-label="Destaques e notas"]'); await A.locator('[data-testid=highlight-item]').first().locator('button[aria-label="Apagar destaque"]').click();
+  await A.waitForSelector('button:has-text("Notas (1)")'); ann = await hlApi(); assert.equal(ann.highlights.length, 1); assert.equal(ann.highlights[0].color, 'yellow');
+  await until(async () => (await decorations()) === 1);
+});

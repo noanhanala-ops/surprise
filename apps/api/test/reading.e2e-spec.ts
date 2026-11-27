@@ -96,6 +96,22 @@ describe('Reading: progresso sincronizado, anotações e preferências (e2e, Pos
     expect(delta.bookmarks[0].deleted_at).toBeTruthy(); expect(delta.highlights[0].deleted_at).toBeTruthy(); expect(delta.notes[0].deleted_at).toBeTruthy();
   });
 
+  it('editar destaque: cor e nota (criar, alterar, apagar); só o dono; sobe a versão', async () => {
+    const hl = (await request(ctx.http).post(`/v1/reading/${editionId}/highlights`).set(auth(reader.token)).send({ locator: L('c3.xhtml'), selected_text: 'x', color: 'yellow' }).expect(201)).body;
+    const note = async () => (await request(ctx.http).get(`/v1/reading/${editionId}/annotations`).set(auth(reader.token))).body.notes.filter((n: any) => n.highlight_id === hl.id && !n.deleted_at);
+    expect(await note()).toHaveLength(0);
+    const v1 = (await request(ctx.http).put(`/v1/reading/${editionId}/highlights/${hl.id}`).set(auth(reader.token)).send({ note: 'primeira nota', color: 'green' }).expect(200)).body; expect(v1.version).toBe(2);
+    expect((await note())[0].content).toBe('primeira nota');
+    await request(ctx.http).put(`/v1/reading/${editionId}/highlights/${hl.id}`).set(auth(reader.token)).send({ note: 'nota editada' }).expect(200);
+    const n2 = await note(); expect(n2).toHaveLength(1); expect(n2[0].content).toBe('nota editada');
+    expect((await request(ctx.http).get(`/v1/reading/${editionId}/annotations`).set(auth(reader.token))).body.highlights.find((h: any) => h.id === hl.id).color).toBe('green');
+    await request(ctx.http).put(`/v1/reading/${editionId}/highlights/${hl.id}`).set(auth(reader.token)).send({ note: '' }).expect(200); expect(await note()).toHaveLength(0);
+    await request(ctx.http).put(`/v1/reading/${editionId}/highlights/${hl.id}`).set(auth(other.token)).send({ note: 'intruso' }).expect(404); // não altera o de outro
+    await request(ctx.http).put(`/v1/reading/${editionId}/highlights/${hl.id}`).set(auth(nobody.token)).send({ note: 'x' }).expect(403);
+    await request(ctx.http).delete(`/v1/reading/${editionId}/highlights/${hl.id}`).set(auth(reader.token)).expect(204);
+    await request(ctx.http).put(`/v1/reading/${editionId}/highlights/${hl.id}`).set(auth(reader.token)).send({ note: 'x' }).expect(404); // apagado
+  });
+
   it('sessão de leitura e preferências', async () => {
     expect((await request(ctx.http).post(`/v1/reading/${editionId}/session`).set(auth(reader.token)).send({}).expect(201)).body.id).toBeTruthy();
     await request(ctx.http).put('/v1/reading/preferences').set(auth(reader.token)).send({ theme: 'DARK', font_size: 18 }).expect(200);

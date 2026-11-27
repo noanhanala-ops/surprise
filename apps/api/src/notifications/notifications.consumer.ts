@@ -10,7 +10,20 @@ import { BusEvent, EventBus } from '../events/event-bus';
 export class NotificationsConsumer implements OnModuleInit {
   private log = new Logger('Notifications');
   constructor(private db: DbService, private bus: EventBus) {}
-  onModuleInit() { this.bus.subscribe('notifications', 'EmailVerificationRequested', (e) => this.onVerification(e)); }
+  onModuleInit() {
+    this.bus.subscribe('notifications', 'EmailVerificationRequested', (e) => this.onVerification(e));
+    this.bus.subscribe('notifications', 'PasswordResetRequested', (e) => this.onReset(e));
+  }
+
+  async onReset(e: BusEvent) {
+    await this.db.tx(async (c) => {
+      const seen = await c.query(`INSERT INTO inbox_events (consumer, event_id) VALUES ('notifications',$1) ON CONFLICT DO NOTHING RETURNING 1`, [e.eventId]);
+      if (!seen.rowCount) return;
+      const link = `${process.env.WEB_BASE_URL ?? 'http://localhost:3000'}/reset-password?token=${encodeURIComponent(e.payload.token)}`;
+      await c.query(`INSERT INTO notifications (user_id, channel, template, payload) VALUES ($1,'EMAIL','reset_password',$2)`, [e.payload.userId, JSON.stringify({ email: e.payload.email, token: e.payload.token, link })]);
+      if (process.env.SANDBOX_MODE === 'true') this.log.log(`[sandbox] link de recuperação para ${e.payload.email}: ${link}`);
+    });
+  }
 
   async onVerification(e: BusEvent) {
     await this.db.tx(async (c) => {

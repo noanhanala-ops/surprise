@@ -91,3 +91,11 @@ export async function decideRefundAction(form: FormData) {
   await run(p, () => api(`/admin/refunds/${id}/decision`, { body: { decision: field(form, 'decision'), reason: field(form, 'reason'), revoke_entitlement: revoke, legal_basis: revoke ? field(form, 'legal_basis') : undefined } }));
   back(p, 'ok', field(form, 'decision') === 'APPROVE' ? 'Reembolso aprovado e processado.' : 'Reembolso rejeitado.');
 }
+
+// ---------------- Conta do cliente
+/** Pedido de reembolso de um artigo (o administrador decide). Idempotency-Key por artigo: cliques repetidos não duplicam. */
+export async function requestRefundAction(form: FormData) {
+  const orderId = field(form, 'order_id'); const itemId = field(form, 'item_id'); const p = '/account/orders';
+  await run(p, () => api(`/orders/${orderId}/refund-requests`, { idempotencyKey: `refund-${itemId}-${Math.floor(Date.now() / 600_000)}`, body: { reason: field(form, 'reason'), order_item_ids: [itemId] } }));
+  back(p, 'ok', 'Pedido de reembolso enviado. Receberá a decisão em breve.');
+}

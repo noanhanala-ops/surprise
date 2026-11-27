@@ -25,3 +25,9 @@ WebAuthn/passkeys · recuperação de palavra-passe (`/auth/forgot-password`) ·
 - **Rate limiter falha-aberta**: se o Redis cair os pedidos passam (disponibilidade) e o erro fica registado — alertar sobre `rate limiter indisponível`.
 - `MFA_ENC_KEY` (32 bytes, base64) é **obrigatória em produção**; sem ela a API não consegue cifrar/decifrar segredos MFA. Perder a chave = todos os utilizadores com MFA ficam bloqueados (usar códigos de recuperação/processo de suporte).
 - Os registos `[Mfa] … recusado user=<id>` permitem detetar abuso; nunca incluem o código.
+
+## Adenda: recuperação de palavra-passe e revogação de sessões
+
+- `POST /auth/forgot-password` responde sempre 202 (sem enumeração de contas); limites por IP e por e-mail. O token é um JWT de uso único (impressão digital do hash actual da palavra-passe) com 1 h de validade.
+- `POST /auth/reset-password` troca a palavra-passe (argon2id), revoga todas as sessões e regista auditoria; o MFA continua exigido no login seguinte.
+- O `JwtAuthGuard` verifica que a família de sessões do token ainda tem refresh activo, pelo que logout e reset invalidam também os access tokens em curso (cache curta `SESSION_CHECK_TTL_MS`).

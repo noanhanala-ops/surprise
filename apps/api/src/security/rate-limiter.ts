@@ -67,5 +67,7 @@ export const LIMITS = {
   loginIp: () => ({ limit: num('RATE_LOGIN_IP', 30), windowMs: 60_000 }),
   loginFails: () => ({ limit: num('RATE_LOGIN_FAILS', 5), windowMs: 15 * 60_000 }),
   registerIp: () => ({ limit: num('RATE_REGISTER_IP', 10), windowMs: 60 * 60_000 }),
+  forgotIp: () => ({ limit: num('RATE_FORGOT_IP', 10), windowMs: 60 * 60_000 }),
+  forgotEmail: () => ({ limit: num('RATE_FORGOT_EMAIL', 3), windowMs: 60 * 60_000 }),
   mfaFails: () => ({ limit: num('RATE_MFA_FAILS', 5), windowMs: 5 * 60_000 }),
 };

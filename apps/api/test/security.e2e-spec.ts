@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { Test } from '@nestjs/testing';
 import { setup, auth, Ctx, password, totpNow } from './helpers';
 import { AppModule } from '../src/app.module';
+import { OutboxRelay } from '../src/events/outbox-relay.service';
 import { configureApp } from '../src/setup';
 
 /** Repõe/aplica variáveis de ambiente durante um teste. */
@@ -145,6 +146,40 @@ describe('Segurança: rate limiting (credential stuffing) e MFA', () => {
       await request(ctx.http).post('/v1/auth/mfa/disable').set(auth(t)).send({ code: (tick(), totpNow(e.secret)) }).expect(204);
       expect((await login(u2.email).expect(200)).body.access_token).toBeTruthy();
       expect((await ctx.pool.query(`SELECT count(*)::int n FROM mfa_credentials WHERE user_id=$1`, [u2.id])).rows[0].n).toBe(0);
+    });
+  });
+
+  describe('revogação de sessões (o access token deixa de valer logo, não só ao expirar)', () => {
+    it('logout, revogar dispositivo e reposição de palavra-passe cortam o access token de imediato; o refresh não o invalida', async () => {
+      const u = await fresh('sess'); const dev = { fingerprint: 'fp-sess', platform: 'WEB' };
+      const l1 = (await request(ctx.http).post('/v1/auth/login').send({ email: u.email, password, device: dev }).expect(200)).body;
+      await request(ctx.http).get('/v1/users/me').set(auth(l1.access_token)).expect(200);
+      // rotação do refresh: o token novo e o antigo (mesma família, p.ex. pedidos em voo) continuam válidos
+      const r = (await request(ctx.http).post('/v1/auth/refresh').send({ refresh_token: l1.refresh_token }).expect(200)).body;
+      await request(ctx.http).get('/v1/users/me').set(auth(r.access_token)).expect(200); await request(ctx.http).get('/v1/users/me').set(auth(l1.access_token)).expect(200);
+      // logout
+      await request(ctx.http).post('/v1/auth/logout').set(auth(r.access_token)).expect(204);
+      await request(ctx.http).get('/v1/users/me').set(auth(r.access_token)).expect(401);
+      // revogar dispositivo
+      const l2 = (await request(ctx.http).post('/v1/auth/login').send({ email: u.email, password, device: dev }).expect(200)).body;
+      const devices = (await request(ctx.http).get('/v1/users/me/devices').set(auth(l2.access_token)).expect(200)).body;
+      await request(ctx.http).delete(`/v1/users/me/devices/${devices[0].id}`).set(auth(l2.access_token)).expect(204);
+      await request(ctx.http).get('/v1/users/me').set(auth(l2.access_token)).expect(401);
+      // reposição de palavra-passe
+      const l3 = (await request(ctx.http).post('/v1/auth/login').send({ email: u.email, password }).expect(200)).body;
+      await request(ctx.http).post('/v1/auth/forgot-password').send({ email: u.email }).expect(202);
+      const rel = ctx.app.get(OutboxRelay); while (await rel.relayOnce()) { /* drena */ }
+      const t = (await request(ctx.http).get(`/v1/dev/reset-token?email=${encodeURIComponent(u.email)}`)).body.token;
+      await request(ctx.http).get('/v1/users/me').set(auth(l3.access_token)).expect(200);
+      await request(ctx.http).post('/v1/auth/reset-password').send({ token: t, password: 'brand new passphrase 4242' }).expect(204);
+      await request(ctx.http).get('/v1/users/me').set(auth(l3.access_token)).expect(401);
+    });
+
+    it('detecção de reutilização do refresh corta também os access tokens da família', async () => {
+      const u = await fresh('reuse'); const l = (await request(ctx.http).post('/v1/auth/login').send({ email: u.email, password }).expect(200)).body;
+      const r = (await request(ctx.http).post('/v1/auth/refresh').send({ refresh_token: l.refresh_token }).expect(200)).body;
+      await request(ctx.http).post('/v1/auth/refresh').send({ refresh_token: l.refresh_token }).expect(401); // reutilização ⇒ família revogada
+      await request(ctx.http).get('/v1/users/me').set(auth(r.access_token)).expect(401);
     });
   });
 

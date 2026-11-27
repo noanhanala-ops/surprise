@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import { deflateSync } from 'zlib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 export async function makeEpub(title: string, opts: { badMimetype?: boolean } = {}) {
   const z = new JSZip();
@@ -37,4 +38,16 @@ export function makePng(w: number, h: number, top: [number, number, number], bot
   const rows: Buffer[] = [];
   for (let y = 0; y < h; y++) { const t = y / (h - 1); const px = [0, 1, 2].map((i) => Math.round(top[i] + (bottom[i] - top[i]) * t)); rows.push(Buffer.concat([Buffer.from([0]), Buffer.from(Array.from({ length: w }, () => px).flat())])); }
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(Buffer.concat(rows))), chunk('IEND', Buffer.alloc(0))]);
+}
+
+/** PDF real e válido (xref correcto) com `pages` páginas, cada uma com o número bem visível — para testar o leitor. */
+export async function makePdf(title: string, pages = 12) {
+  const doc = await PDFDocument.create(); doc.setTitle(title); const font = await doc.embedFont(StandardFonts.HelveticaBold); const body = await doc.embedFont(StandardFonts.Helvetica);
+  for (let i = 1; i <= pages; i++) {
+    const p = doc.addPage([420, 594]); p.drawRectangle({ x: 0, y: 0, width: 420, height: 594, color: rgb(0.99, 0.97, 0.93) });
+    p.drawText(title, { x: 30, y: 540, size: 16, font, color: rgb(0.35, 0.15, 0.1) });
+    p.drawText(`Página ${i}`, { x: 120, y: 330, size: 48, font, color: rgb(0.2, 0.2, 0.2) });
+    p.drawText(`de ${pages}`, { x: 175, y: 290, size: 20, font: body, color: rgb(0.4, 0.4, 0.4) });
+  }
+  return Buffer.from(await doc.save());
 }

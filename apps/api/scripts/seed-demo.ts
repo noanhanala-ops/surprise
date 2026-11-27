@@ -5,7 +5,7 @@
  */
 import { createHash } from 'crypto';
 import { Pool } from 'pg';
-import { makePng, makeRichEpub } from '../fixtures/epub';
+import { makePdf, makePng, makeRichEpub } from '../fixtures/epub';
 import { base32Decode, totp } from '../src/identity/totp';
 
 const API = (process.env.API_URL ?? 'http://localhost:3001') + '/v1';
@@ -46,11 +46,12 @@ async function upload(token: string, editionId: string, kind: string, mime: stri
   else { const r = await fetch(i.url, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: buf }); if (!r.ok) throw new Error(`PUT ${r.status} ${await r.text()}`); }
 }
 
-const BOOKS = [
+const BOOKS: readonly { title: string; usd: number; mzn: number; top: readonly number[]; bottom: readonly number[]; desc: string; pdf?: boolean }[] = [
   { title: 'A Varanda do Frangipani (exemplo)', usd: 899, mzn: 57000, top: [138, 59, 46], bottom: [59, 29, 23], desc: 'Livro de demonstração gerado automaticamente.\nUm romance fictício para testar compra, biblioteca e leitor.' },
   { title: 'Cartas do Índico (exemplo)', usd: 1299, mzn: 83000, top: [30, 90, 120], bottom: [10, 30, 50], desc: 'Livro de demonstração. Correspondência fictícia entre dois portos.' },
   { title: 'Guia de Leitura Lenta (exemplo)', usd: 499, mzn: 32000, top: [60, 110, 70], bottom: [20, 50, 30], desc: 'Livro de demonstração sobre ler sem pressa.' },
-] as const;
+  { title: 'Manual de Jardinagem em PDF (exemplo)', usd: 699, mzn: 44000, top: [120, 90, 30], bottom: [50, 35, 10], pdf: true, desc: 'Livro de demonstração em PDF (12 páginas) para testar o leitor de PDF.' },
+];
 
 async function main() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -68,7 +69,8 @@ async function main() {
   for (const b of BOOKS) {
     if (!todo.includes(b)) { console.log(`= já existe: ${b.title}`); continue; }
     const ed = await call('POST', '/publisher/books', pub, { publisher_id: publisherId, title: b.title, description: b.desc, language_code: 'pt', prices: [{ currency: 'USD', amount_minor: b.usd }, { currency: 'MZN', amount_minor: b.mzn }] });
-    await upload(pub, ed.edition_id, 'EPUB', 'application/epub+zip', await makeRichEpub(b.title));
+    if (b.pdf) await upload(pub, ed.edition_id, 'PDF', 'application/pdf', await makePdf(b.title, 12));
+    else await upload(pub, ed.edition_id, 'EPUB', 'application/epub+zip', await makeRichEpub(b.title));
     await upload(pub, ed.edition_id, 'COVER', 'image/png', makePng(240, 360, b.top as any, b.bottom as any));
     await call('POST', `/publisher/books/${ed.edition_id}/submit`, pub);
     const adm = await admin();

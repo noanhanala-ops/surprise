@@ -13,7 +13,8 @@ const ALLOWED: Array<[RegExp, string[]]> = [
   [/^uploads\/complete$/, ['POST']], // concluir upload directo ao bucket
   [/^reading\/[0-9a-f-]{36}\/(progress|annotations)$/, ['GET', 'PUT']],
   [/^reading\/[0-9a-f-]{36}\/(bookmarks|highlights|session)$/, ['POST']],
-  [/^reading\/[0-9a-f-]{36}\/(bookmarks|highlights)\/[0-9a-f-]{36}$/, ['DELETE']],
+  [/^reading\/[0-9a-f-]{36}\/bookmarks\/[0-9a-f-]{36}$/, ['DELETE']],
+  [/^reading\/[0-9a-f-]{36}\/highlights\/[0-9a-f-]{36}$/, ['PUT', 'DELETE']],
 ];
 
 async function call(path: string, req: NextRequest, body: string | undefined, token?: string) {

@@ -80,6 +80,23 @@ export class ReadingService {
     });
   }
 
+  /** Altera a cor e/ou a nota de um destaque. `note: ''` apaga a nota. Sobe a versão (sincronização). */
+  async updateHighlight(userId: string, editionId: string, id: string, p: { color?: string; note?: string }) {
+    await this.assertAccess(userId, editionId);
+    return this.db.tx(async (c) => {
+      const h = await c.query(`UPDATE highlights SET color=COALESCE($4,color), version=version+1 WHERE id=$1 AND user_id=$2 AND edition_id=$3 AND deleted_at IS NULL RETURNING id, version`, [id, userId, editionId, p.color ?? null]);
+      if (!h.rowCount) throw new NotFoundException();
+      if (p.note !== undefined) {
+        const txt = p.note.trim();
+        const cur = (await c.query(`SELECT id FROM annotations WHERE highlight_id=$1 AND user_id=$2 AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 1`, [id, userId])).rows[0];
+        if (!txt && cur) await c.query(`UPDATE annotations SET deleted_at=now(), version=version+1 WHERE id=$1`, [cur.id]);
+        else if (txt && cur) await c.query(`UPDATE annotations SET content=$2, version=version+1, updated_at=now() WHERE id=$1`, [cur.id, txt]);
+        else if (txt) await c.query(`INSERT INTO annotations (user_id, highlight_id, content) VALUES ($1,$2,$3)`, [userId, id, txt]);
+      }
+      return { id: h.rows[0].id, version: Number(h.rows[0].version) };
+    });
+  }
+
   /** Remoção lógica (para propagar a outros dispositivos). Só do próprio utilizador. */
   async remove(userId: string, editionId: string, kind: 'bookmarks' | 'highlights', id: string) {
     await this.assertAccess(userId, editionId);

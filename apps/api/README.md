@@ -11,6 +11,8 @@
 | `TRUST_PROXY` | atrás de proxy/CDN | Nº de saltos (`1`) ou `true`: usa `X-Forwarded-For` para o IP real. **Sem isto o rate limit por IP vê só o IP do proxy.** |
 | `MFA_ENC_KEY` | **sim em produção** | 32 bytes em base64 (`openssl rand -base64 32`); cifra os segredos TOTP. Fora de produção deriva-se do `JWT_SECRET`. |
 | `RATE_LOGIN_IP` · `RATE_LOGIN_FAILS` · `RATE_REGISTER_IP` · `RATE_MFA_FAILS` | não | Limites (por omissão 30/min · 5/15 min · 10/h · 5/5 min). Subir em ambientes de E2E que registam muitos utilizadores do mesmo IP. |
+| `RATE_FORGOT_IP` · `RATE_FORGOT_EMAIL` | não | Limites da recuperação de palavra-passe (10/h por IP · 3/h por e-mail). |
+| `SESSION_CHECK_TTL_MS` | não | Cache (ms) da verificação de que a sessão não foi revogada (por omissão 5000; testes usam 0). |
 | `OUTBOX_POLL_MS` | não | Intervalo do relay do outbox (500; `0` desliga) |
 | `FAKE_PROVIDER_SECRET` | dev | Fornecedor simulado; **desligado em `NODE_ENV=production`** |
 

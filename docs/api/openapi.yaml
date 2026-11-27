@@ -42,6 +42,10 @@ paths:
         '200': {description: Tokens ou desafio MFA, content: {application/json: {schema: {$ref: '#/components/schemas/AuthResult'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '429': {$ref: '#/components/responses/TooManyRequests'}
+  /auth/forgot-password:
+    post: {tags: [Identity], security: [], summary: 'Pedir recuperação de palavra-passe. Resposta sempre 202 (não revela se o e-mail existe); limites por IP (429) e por e-mail (silencioso).', requestBody: {required: true, content: {application/json: {schema: {type: object, required: [email], properties: {email: {type: string, format: email}}}}}}, responses: {'202': {description: Aceite}, '429': {$ref: '#/components/responses/TooManyRequests'}}}
+  /auth/reset-password:
+    post: {tags: [Identity], security: [], summary: 'Definir nova palavra-passe com o token do e-mail (uso único, 1 h). Revoga todas as sessões; o MFA continua exigido no login seguinte.', requestBody: {required: true, content: {application/json: {schema: {type: object, required: [token, password], properties: {token: {type: string}, password: {type: string, minLength: 12}}}}}}, responses: {'204': {description: Palavra-passe alterada}, '400': {description: Token inválido, expirado ou já usado}}}
   /auth/refresh:
     post:
       tags: [Identity]
@@ -234,6 +238,7 @@ paths:
   /reading/{editionId}/bookmarks/{id}:
     delete: {tags: [Reading], summary: Apagar marcador (remoção lógica, propaga-se na sincronização), parameters: [{$ref: '#/components/parameters/EditionId'}, {$ref: '#/components/parameters/Id'}], responses: {'204': {description: Apagado}, '404': {$ref: '#/components/responses/NotFound'}}}
   /reading/{editionId}/highlights/{id}:
+    put: {tags: [Reading], summary: 'Actualizar cor e/ou nota do destaque (nota vazia apaga-a; incrementa a versão para sync)', parameters: [{$ref: '#/components/parameters/EditionId'}, {$ref: '#/components/parameters/Id'}], requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {color: {type: string}, note: {type: string}}}}}}, responses: {'200': {description: Actualizado}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}}}
     delete: {tags: [Reading], summary: Apagar destaque e nota associada (remoção lógica), parameters: [{$ref: '#/components/parameters/EditionId'}, {$ref: '#/components/parameters/Id'}], responses: {'204': {description: Apagado}, '404': {$ref: '#/components/responses/NotFound'}}}
   /read/{token}/manifest.json:
     get: {tags: [Entitlements], security: [], summary: 'Readium Web Publication Manifest do EPUB (token `read` de 1 h devolvido por /library/{editionId}/access; direito revalidado em cada pedido)', parameters: [{name: token, in: path, required: true, schema: {type: string}}], responses: {'200': {description: application/webpub+json}, '403': {$ref: '#/components/responses/Forbidden'}}}
