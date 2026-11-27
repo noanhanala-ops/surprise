@@ -19,6 +19,12 @@ services:
     environment: { MINIO_ROOT_USER: drp, MINIO_ROOT_PASSWORD: drp_dev_only }
     ports: ["9000:9000", "9001:9001"]
     volumes: [miniodata:/data]
+  minio-init:
+    image: minio/mc
+    depends_on: [minio]
+    entrypoint: >
+      /bin/sh -c "until mc alias set local http://minio:9000 drp drp_dev_only; do sleep 1; done;
+      mc mb --ignore-existing local/drp-content; mc ilm rule add --prefix uploads/ --expire-days 1 local/drp-content; exit 0"
   opensearch:
     image: opensearchproject/opensearch:2
     environment: { discovery.type: single-node, DISABLE_SECURITY_PLUGIN: "true", OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m" }

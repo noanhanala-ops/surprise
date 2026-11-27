@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { DbService } from '../common/db.service';
-import { EventBus } from './event-bus';
+import { BrokerUnavailableError, EventBus } from './event-bus';
 
 const MAX_ATTEMPTS = 5;
 
@@ -30,6 +30,7 @@ export class OutboxRelay implements OnApplicationBootstrap, OnModuleDestroy {
           await c.query(`UPDATE outbox_events SET published_at=now() WHERE id=$1`, [r.id]);
           ok++;
         } catch (e: any) {
+          if (e instanceof BrokerUnavailableError) { this.log.warn(`broker indisponível; ${rows.length - ok} evento(s) ficam no outbox`); break; } // infra ≠ falha do evento
           await c.query(`UPDATE outbox_events SET attempts = attempts + 1 WHERE id=$1`, [r.id]);
           if (r.attempts + 1 >= MAX_ATTEMPTS)
             await c.query(`INSERT INTO dead_letter_events (source, event_id, event_type, payload, error) VALUES ('outbox',$1,$2,$3,$4)`, [r.event_id, r.event_type, r.payload, String(e?.message ?? e)]);

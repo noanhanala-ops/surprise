@@ -233,7 +233,7 @@ paths:
   /publisher/books/{id}/assets:
     post:
       tags: [Publisher]
-      summary: Pedir URL de upload (pré-assinado); o processamento é assíncrono
+      summary: 'Pedir URL de upload. Resposta `mode: direct` (URL pré-assinada do bucket + upload_token → POST /uploads/complete) ou `mode: proxy` (PUT à API, dev)'
       parameters: [{$ref: '#/components/parameters/Id'}]
       requestBody: {required: true, content: {application/json: {schema: {type: object, required: [kind, mime_type, size_bytes, checksum_sha256], properties: {kind: {type: string, enum: [COVER, PREVIEW, SOURCE_FILE, EPUB, PDF, AUDIOBOOK, COMIC]}, mime_type: {type: string}, size_bytes: {type: integer, minimum: 1}, checksum_sha256: {type: string}}}}}}
       responses: {'201': {description: URL de upload, content: {application/json: {schema: {$ref: '#/components/schemas/SignedUrl'}}}}}
@@ -250,6 +250,12 @@ paths:
       responses: {'201': {description: Editora criada em PENDING}}
   /publisher/books/{id}/submit:
     post: {tags: [Publisher], summary: Submeter edição para revisão (exige formato READY e preço; `id` é o id da EDIÇÃO), parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Estado IN_REVIEW}, '422': {$ref: '#/components/responses/ValidationError'}}}
+  /uploads/complete:
+    post:
+      tags: [Publisher]
+      summary: Concluir upload directo ao bucket (valida tamanho/SHA-256/conteúdo; apaga o staging; reenvio do mesmo conteúdo é idempotente)
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [upload_token], properties: {upload_token: {type: string}}}}}}
+      responses: {'201': {description: 'Formato READY (ou duplicate=true se o conteúdo já existia)'}, '404': {description: Nada no staging (já processado ou não carregado)}, '413': {description: Tamanho diferente do declarado}, '422': {description: Ficheiro inválido ou checksum divergente}}
   /uploads/{token}:
     put:
       tags: [Publisher]

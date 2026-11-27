@@ -7,8 +7,8 @@ import { BusEvent, EventBus } from '../events/event-bus';
 export class RoyaltyConsumer implements OnModuleInit {
   constructor(private db: DbService, private bus: EventBus) {}
   onModuleInit() {
-    this.bus.subscribe('PaymentCaptured', (e) => this.onSale(e));
-    this.bus.subscribe('RefundCompleted', (e) => this.onRefund(e));
+    this.bus.subscribe('royalty', 'PaymentCaptured', (e) => this.onSale(e));
+    this.bus.subscribe('royalty', 'RefundCompleted', (e) => this.onRefund(e));
   }
 
   async onSale(e: BusEvent) {

@@ -23,6 +23,16 @@ describe('Catalog / Publisher / Content / Admin (e2e, PostgreSQL real)', () => {
     return { email, token: tk };
   }
 
+  /** Percorre todas as páginas do catálogo (a BD de dev acumula livros de outras execuções). */
+  async function listAll(country: string | undefined, query = '') {
+    const items: any[] = []; let cursor: string | null = null;
+    do {
+      const r: any = await request(http).get(`/v1/books?limit=100${query}${cursor ? `&cursor=${cursor}` : ''}`).set(country ? { 'x-country': country } : {}).expect(200);
+      items.push(...r.body.items); cursor = r.body.next_cursor;
+    } while (cursor);
+    return items;
+  }
+
   let admin: any, pub: any, other: any, customer: any;
   let publisherId: string, editionId: string, slug: string;
 
@@ -91,10 +101,17 @@ describe('Catalog / Publisher / Content / Admin (e2e, PostgreSQL real)', () => {
     expect((await upload('COVER', png)).status).toBe(201);
   });
 
+  it('reenviar o mesmo conteúdo é idempotente (devolve a versão existente, não rebenta)', async () => {
+    const epub = await makeEpub('Terra Sonâmbula'); // idêntico ao carregado no teste anterior
+    const r = await upload('EPUB', epub);
+    expect(r.status).toBe(201); expect(r.body.duplicate).toBe(true);
+    const { rows } = await pool.query(`SELECT count(*)::int n FROM book_format_versions v JOIN book_formats f ON f.id=v.book_format_id WHERE f.book_edition_id=$1 AND v.processing_status='READY'`, [editionId]);
+    expect(rows[0].n).toBe(1);
+  });
+
   it('edição em DRAFT/IN_REVIEW nunca aparece no catálogo público', async () => {
     await request(http).post(`/v1/publisher/books/${editionId}/submit`).set(auth(pub.token)).expect(200);
-    const r = await request(http).get('/v1/books').set('x-country', 'MZ').expect(200);
-    expect(r.body.items.find((b: any) => b.slug === slug)).toBeUndefined();
+    expect((await listAll('MZ')).find((b: any) => b.slug === slug)).toBeUndefined();
   });
 
   it('aprovação exige contrato de direitos; depois publica', async () => {
@@ -107,15 +124,13 @@ describe('Catalog / Publisher / Content / Admin (e2e, PostgreSQL real)', () => {
   });
 
   it('AC-04: catálogo respeita territórios (MZ vê, KP não, desconhecido vê por ser WW)', async () => {
-    const mz = await request(http).get('/v1/books?currency=USD').set('x-country', 'MZ').expect(200);
-    const item = mz.body.items.find((b: any) => b.slug === slug);
+    const item = (await listAll('MZ', '&currency=USD')).find((b: any) => b.slug === slug);
     expect(item.price).toEqual({ amount_minor: 999, currency: 'USD' }); expect(item.formats).toEqual(['EPUB']); expect(item.purchasable).toBe(true);
     const mzn = await request(http).get(`/v1/books/${slug}?currency=MZN`).set('x-country', 'MZ').expect(200);
     expect(mzn.body.price.amount_minor).toBe(60000);
-    const kp = await request(http).get('/v1/books').set('x-country', 'KP').expect(200);
-    expect(kp.body.items.find((b: any) => b.slug === slug)).toBeUndefined();
+    expect((await listAll('KP')).find((b: any) => b.slug === slug)).toBeUndefined();
     await request(http).get(`/v1/books/${slug}`).set('x-country', 'KP').expect(404);
-    expect((await request(http).get('/v1/books').expect(200)).body.items.some((b: any) => b.slug === slug)).toBe(true);
+    expect((await listAll(undefined)).some((b: any) => b.slug === slug)).toBe(true);
   });
 
   it('edição publicada não é editável pela editora e mantém um preço vigente por moeda', async () => {

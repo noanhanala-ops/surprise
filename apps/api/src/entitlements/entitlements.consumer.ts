@@ -8,7 +8,7 @@ import { emit } from '../events/outbox';
 @Injectable()
 export class EntitlementsConsumer implements OnModuleInit {
   constructor(private db: DbService, private bus: EventBus) {}
-  onModuleInit() { this.bus.subscribe('PaymentCaptured', (e) => this.onPaymentCaptured(e)); }
+  onModuleInit() { this.bus.subscribe('entitlements', 'PaymentCaptured', (e) => this.onPaymentCaptured(e)); }
 
   async onPaymentCaptured(e: BusEvent) {
     await this.db.tx(async (c) => {

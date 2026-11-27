@@ -16,7 +16,8 @@ Fase 0 concluída; **Fase 1 iniciada** (módulo Identity). Já validado:
 | **API NestJS — módulo Identity** (registo, verificação de e-mail via outbox, login Argon2id, refresh com rotação e deteção de reutilização, dispositivos) | `apps/api` | 10 testes e2e em PostgreSQL real |
 | **Catalog, Publisher, Content (validação EPUB/PDF/CBZ), Admin (aprovação, contratos, territórios, suspensão), RBAC e auditoria** | `apps/api` | +15 testes e2e |
 | **Commerce, Payments (porta + FakeProvider), Outbox/Inbox, Entitlements, biblioteca/acesso, reembolsos, Royalty ledger, reconciliação** | `apps/api` | 47 testes e2e |
-| **Reading API** (progresso versionado multi-dispositivo, marcadores, destaques+notas, sync incremental, preferências) | `apps/api` | 56 testes e2e no total, em PostgreSQL real |
+| **Reading API** (progresso versionado multi-dispositivo, marcadores, destaques+notas, sync incremental, preferências) | `apps/api` | 57 testes e2e em PostgreSQL real |
+| **Adaptadores de produção: RabbitMQ** (confirmações, retry, dead-letter, reconexão) **e S3/R2/MinIO** (upload directo por URL pré-assinada) | `apps/api`, ADR-0010 | 14 testes contra RabbitMQ e S3 reais (`npm run test:infra`) |
 | Análise de licenças dos 5 repositórios indicados | `docs/architecture/OPEN_SOURCE_REUSE.md` | licenças lidas dos LICENSE |
 | Contratos TS (PaymentProvider, eventos) | `packages/contracts` | — |
 | Docker Compose de dev, CI | `docker-compose.yml`, `.github/workflows` | — |

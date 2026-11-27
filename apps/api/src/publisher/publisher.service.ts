@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
+import { StorageService } from '../storage/storage.service';
 import { PoolClient } from 'pg';
 import { AuditService } from '../common/audit.service';
 import { DbService, Queryable } from '../common/db.service';
@@ -12,7 +13,7 @@ const WRITE_ROLES = ['OWNER', 'EDITOR'];
 
 @Injectable()
 export class PublisherService {
-  constructor(private db: DbService, private audit: AuditService, private jwt: JwtService) {}
+  constructor(private db: DbService, private audit: AuditService, private jwt: JwtService, private storage: StorageService) {}
 
   async registerPublisher(userId: string, dto: RegisterPublisherDto) {
     return this.db.tx(async (c) => {
@@ -103,8 +104,17 @@ export class PublisherService {
   async uploadIntent(userId: string, editionId: string, dto: UploadIntentDto, baseUrl: string) {
     const ed = await this.ownEdition(this.db, userId, editionId);
     if (!['DRAFT', 'IN_REVIEW'].includes(ed.status)) throw new ConflictException('Edição já publicada: crie uma nova versão');
-    const token = await this.jwt.signAsync({ purpose: 'upload', sub: userId, ed: editionId, kind: dto.kind, size: dto.size_bytes, sha: dto.checksum_sha256.toLowerCase(), mime: dto.mime_type }, { expiresIn: '15m' });
-    return { url: `${baseUrl}/v1/uploads/${token}`, method: 'PUT', expires_at: new Date(Date.now() + 15 * 60_000).toISOString() };
+    const claims = { sub: userId, ed: editionId, kind: dto.kind, size: dto.size_bytes, sha: dto.checksum_sha256.toLowerCase(), mime: dto.mime_type };
+    const ttl = 15 * 60; const expires_at = new Date(Date.now() + ttl * 1000).toISOString();
+    if (this.storage.supportsDirectUpload()) {
+      // Produção: o cliente envia directo para o bucket (staging); depois chama POST /uploads/complete.
+      const key = `uploads/${editionId}/${randomUUID()}`;
+      const url = await this.storage.signedPutUrl(key, { ttlSeconds: ttl, contentType: dto.mime_type, size: dto.size_bytes });
+      const upload_token = await this.jwt.signAsync({ ...claims, purpose: 'upload-direct', key }, { expiresIn: ttl });
+      return { mode: 'direct', url, method: 'PUT', headers: { 'Content-Type': dto.mime_type }, upload_token, complete_url: `${baseUrl}/v1/uploads/complete`, expires_at };
+    }
+    const token = await this.jwt.signAsync({ ...claims, purpose: 'upload' }, { expiresIn: ttl });
+    return { mode: 'proxy', url: `${baseUrl}/v1/uploads/${token}`, method: 'PUT', expires_at };
   }
 
   async submit(userId: string, editionId: string) {

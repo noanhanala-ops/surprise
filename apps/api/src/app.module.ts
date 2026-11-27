@@ -11,6 +11,7 @@ import { CatalogService } from './catalog/catalog.service';
 import { UploadController } from './content/upload.controller';
 import { UploadService } from './content/upload.service';
 import { EventsModule } from './events/events.module';
+import { EventBus } from './events/event-bus';
 import { FakeProvider } from './payments/fake.provider';
 import { ProviderRegistry } from './payments/provider.registry';
 import { PaymentsService } from './payments/payments.service';
@@ -25,17 +26,23 @@ import { ReadingService } from './reading/reading.service';
 import { ReadingController } from './reading/reading.controller';
 import { RoyaltyConsumer } from './royalty/royalty.consumer';
 import { LocalStorageService, StorageService } from './storage/storage.service';
+import { S3StorageService } from './storage/s3-storage.service';
+
+/** S3_BUCKET definido ⇒ S3/R2/MinIO; senão disco local (dev). */
+const storageProvider = { provide: StorageService, useFactory: (): StorageService => process.env.S3_BUCKET
+  ? new S3StorageService({ bucket: process.env.S3_BUCKET, region: process.env.S3_REGION, endpoint: process.env.S3_ENDPOINT, publicEndpoint: process.env.S3_PUBLIC_ENDPOINT, forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true' })
+  : new LocalStorageService() };
 
 @Controller('health')
 class HealthController {
-  constructor(private db: DbService) {}
-  @Get() async health() { await this.db.query('SELECT 1'); return { status: 'ok' }; }
+  constructor(private db: DbService, private bus: EventBus) {}
+  @Get() async health() { await this.db.query('SELECT 1'); return { status: 'ok', broker: this.bus.isReady() }; }
 }
 
 @Module({
   imports: [DbModule, EventsModule, IdentityModule],
   controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController, CommerceController, PaymentsController, EntitlementsController, ReadingController],
   providers: [PublisherService, AdminService, CatalogService, UploadService, FakeProvider, ProviderRegistry, PaymentsService, CommerceService, RefundsService,
-    EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, ReadingService, { provide: StorageService, useClass: LocalStorageService }],
+    EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, ReadingService, storageProvider],
 })
 export class AppModule {}

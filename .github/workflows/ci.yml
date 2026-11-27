@@ -40,3 +40,35 @@ jobs:
       - run: npm run build -w @drp/contracts
       - working-directory: apps/api
         run: npx tsc --noEmit && npx jest --runInBand
+  infra:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: ci }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready" --health-interval 5s --health-retries 10
+      rabbitmq:
+        image: rabbitmq:3.13
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 10s --health-retries 10
+    env:
+      DATABASE_URL: "postgres://postgres:ci@localhost:5432/postgres"
+      RABBITMQ_URL: "amqp://guest:guest@localhost:5672"
+      S3_ENDPOINT: "http://localhost:9000"
+      AWS_ACCESS_KEY_ID: drp
+      AWS_SECRET_ACCESS_KEY: drp_dev_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=drp -e MINIO_ROOT_PASSWORD=drp_dev_only minio/minio server /data
+          for i in $(seq 1 30); do curl -sf localhost:9000/minio/health/live && break; sleep 1; done
+      - run: database/migrate.sh --seed
+      - run: npm ci
+      - run: npm run build -w @drp/contracts
+      - run: npm run test:infra -w @drp/api

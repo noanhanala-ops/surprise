@@ -58,7 +58,10 @@ export async function publishBook(ctx: Ctx, admin: { token: string }, pub: { tok
   const b = (await request(http).post('/v1/publisher/books').set(auth(pub.token)).send({ publisher_id: publisherId, title: o.title, language_code: 'pt', prices: [{ currency: 'USD', amount_minor: o.usd }] }).expect(201)).body;
   const epub = await makeEpub(o.title);
   const intent = (await request(http).post(`/v1/publisher/books/${b.edition_id}/assets`).set(auth(pub.token)).send({ kind: 'EPUB', mime_type: 'application/epub+zip', size_bytes: epub.length, checksum_sha256: sha(epub) }).expect(201)).body;
-  await request(http).put(new URL(intent.url).pathname).set('Content-Type', 'application/octet-stream').send(epub).expect(201);
+  if (intent.mode === 'direct') { // produção: PUT directo ao bucket + completar
+    const put = await fetch(intent.url, { method: 'PUT', headers: intent.headers, body: epub }); if (!put.ok) throw new Error(`PUT ao bucket falhou: ${put.status}`);
+    await request(http).post('/v1/uploads/complete').set(auth(pub.token)).send({ upload_token: intent.upload_token }).expect(201);
+  } else await request(http).put(new URL(intent.url).pathname).set('Content-Type', 'application/octet-stream').send(epub).expect(201);
   await request(http).post(`/v1/publisher/books/${b.edition_id}/submit`).set(auth(pub.token)).expect(200);
   await request(http).post('/v1/admin/contracts').set(auth(admin.token)).send({ edition_id: b.edition_id, commission_bps: o.commissionBps ?? 3000, start_at: new Date(Date.now() - 86400000).toISOString(),
     territories: o.countries ?? [{ country_code: 'WW', permission_type: 'SELL' }] }).expect(201);
