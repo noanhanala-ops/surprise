@@ -13,7 +13,7 @@ const ev = (type: string, n = 1): BusEvent => ({ eventId: randomUUID(), type, oc
 
 describe('RabbitMQ real: EventBus adapter', () => {
   const prefix = `t${Date.now()}`; let bus: RabbitMqEventBus; const url = process.env.RABBITMQ_URL!;
-  beforeAll(async () => { requireInfra(['RABBITMQ_URL']); bus = new RabbitMqEventBus({ url, prefix, maxRetries: 3, retryDelayMs: 150 }); await bus.onModuleInit(); });
+  beforeAll(async () => { requireInfra(['RABBITMQ_URL']); bus = new RabbitMqEventBus({ url, prefix, maxRetries: 3, retryDelayMs: 150, confirmTimeoutMs: 800 }); await bus.onModuleInit(); });
   afterAll(async () => {
     await bus.onModuleDestroy();
     const c = await amqp.connect(url); const ch = await c.createChannel();
@@ -51,11 +51,15 @@ describe('RabbitMQ real: EventBus adapter', () => {
   it('o broker cai e volta: reconecta, republica e mantém as subscrições', async () => {
     const got: string[] = []; bus.subscribe('x', 'Reco', async (e) => { got.push(e.eventId); });
     const first = ev('Reco'); await bus.publish(first); await eventually(async () => got.length === 1);
-    try { execSync('rabbitmqctl -n rabbit@localhost close_all_connections "teste de reconexao"', { stdio: 'ignore' }); } catch { throw new Error('rabbitmqctl indisponível: não consegui simular a queda'); }
+    // O broker fecha todas as ligações (queda real). Local: rabbitmqctl; no CI (serviço Docker): RABBITMQ_KILL_CMD com `docker exec`.
+    const kill = process.env.RABBITMQ_KILL_CMD ?? 'rabbitmqctl -n rabbit@localhost close_all_connections "teste de reconexao"';
+    try { execSync(kill, { stdio: 'pipe', shell: '/bin/bash' }); } catch (e: any) { throw new Error(`não consegui simular a queda do broker com «${kill}»: ${e.stderr?.toString() ?? e.message}`); }
     await eventually(async () => !bus.isReady(), 3000).catch(() => undefined);
-    const second = ev('Reco'); await bus.publish(second); // espera pela reconexão
+    const second = ev('Reco');
+    // Como o relay: se o broker ainda não está disponível, publish falha (BrokerUnavailableError) e tenta-se de novo mais tarde.
+    await eventually(async () => { try { await bus.publish(second); return true; } catch (e) { expect(e).toBeInstanceOf(BrokerUnavailableError); return false; } }, 20000, 200);
     await eventually(async () => got.includes(second.eventId), 15000);
-    expect(got).toEqual([first.eventId, second.eventId]);
+    expect(got[0]).toBe(first.eventId); expect(new Set(got)).toEqual(new Set([first.eventId, second.eventId])); // at-least-once: um duplicado seria aceitável
     // regressão: reconectar não pode duplicar consumidores nem ligações (cada evento entregue exactamente 1 vez)
     const third = ev('Reco'); await bus.publish(third); await new Promise((r) => setTimeout(r, 500));
     expect(got.filter((id) => id === third.eventId)).toHaveLength(1);

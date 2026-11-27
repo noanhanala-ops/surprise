@@ -2,7 +2,7 @@ import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import * as amqp from 'amqplib';
 import { BrokerUnavailableError, BusEvent, EventBus, Handler } from './event-bus';
 
-export interface RabbitOptions { url: string; prefix?: string; publishWaitMs?: number; maxRetries?: number; retryDelayMs?: number; prefetch?: number }
+export interface RabbitOptions { url: string; prefix?: string; publishWaitMs?: number; confirmTimeoutMs?: number; maxRetries?: number; retryDelayMs?: number; prefetch?: number }
 interface Sub { consumer: string; type: string; handler: Handler }
 
 /**
@@ -46,7 +46,10 @@ export class RabbitMqEventBus extends EventBus implements OnModuleInit, OnModule
     await Promise.all([...this.starting]);
     try {
       this.pub!.publish(this.exchange, e.type, Buffer.from(JSON.stringify(e)), { persistent: true, messageId: e.eventId, type: e.type, contentType: 'application/json', timestamp: Date.parse(e.occurredAt) });
-      await this.pub!.waitForConfirms(); // só dá "publicado" quando o broker confirma (senão o evento fica no outbox)
+      // Só dá "publicado" quando o broker confirma (senão o evento fica no outbox). Com tempo limite: uma ligação que morre sem
+      // aviso nunca confirma, e sem limite o relay ficava pendurado para sempre.
+      let t: NodeJS.Timeout;
+      await Promise.race([this.pub!.waitForConfirms(), new Promise((_, rej) => { t = setTimeout(() => rej(new Error('confirmação do broker em falta (timeout)')), this.o.confirmTimeoutMs ?? 5000); })]).finally(() => clearTimeout(t!));
     } catch (err: any) { throw new BrokerUnavailableError(err?.message ?? 'falha ao publicar'); }
   }
 
@@ -111,9 +114,11 @@ export class RabbitMqEventBus extends EventBus implements OnModuleInit, OnModule
     });
   }
 
+  /** Encerramento tolerante: um canal/ligação já morto não pode bloquear o desligar da aplicação. */
   private async teardown() {
-    for (const c of this.chans) await c.close().catch(() => undefined);
-    await this.pub?.close().catch(() => undefined); await this.conn?.close().catch(() => undefined);
+    const quiet = (p?: Promise<unknown>) => (p ? Promise.race([p.catch(() => undefined), new Promise((r) => setTimeout(r, 1000))]) : Promise.resolve());
+    for (const c of this.chans) await quiet(c.close());
+    await quiet(this.pub?.close()); await quiet(this.conn?.close());
     this.conn = undefined; this.pub = undefined; this.chans = [];
   }
 }
