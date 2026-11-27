@@ -5,22 +5,26 @@ import { api, ApiError } from './api';
 import { SANDBOX } from './config';
 import { safeNext } from './format';
 import { clearTokens, deviceFingerprint, Tokens, writeTokens } from './session';
+import { COOKIE, cookieBase } from './config';
+import QRCode from 'qrcode';
 
 const field = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
 const fail = (path: string, msg: string, extra = ''): never => redirect(`${path}?error=${encodeURIComponent(msg)}${extra}`);
 const msg = (e: unknown) => (e instanceof ApiError ? (Array.isArray(e.body?.message) ? e.body.message.join('; ') : e.message) : 'Erro inesperado');
 
-async function login(email: string, password: string) {
+/** Devolve 'mfa' quando é preciso o 2.º factor (o desafio fica num cookie httpOnly de 5 min). */
+async function login(email: string, password: string): Promise<'ok' | 'mfa'> {
   const jar = await cookies();
-  const t = await api<Tokens>('/auth/login', { body: { email, password, device: { fingerprint: deviceFingerprint(jar), platform: 'WEB', label: 'Browser' } }, token: null });
-  writeTokens(jar, t);
+  const t = await api<Tokens & { mfa_challenge_id?: string }>('/auth/login', { body: { email, password, device: { fingerprint: deviceFingerprint(jar), platform: 'WEB', label: 'Browser' } }, token: null });
+  if (t.mfa_challenge_id) { jar.set(COOKIE.mfa, t.mfa_challenge_id, { ...cookieBase, maxAge: 300 }); return 'mfa'; }
+  writeTokens(jar, t); return 'ok';
 }
 
 export async function loginAction(form: FormData) {
-  const next = safeNext(field(form, 'next'));
-  try { await login(field(form, 'email'), String(form.get('password') ?? '')); }
-  catch (e) { return fail('/login', e instanceof ApiError && e.status === 401 ? 'E-mail ou palavra-passe incorretos, ou e-mail por verificar.' : msg(e), `&next=${encodeURIComponent(next)}`); }
-  redirect(next);
+  const next = safeNext(field(form, 'next')); let r: 'ok' | 'mfa';
+  try { r = await login(field(form, 'email'), String(form.get('password') ?? '')); }
+  catch (e) { return fail('/login', e instanceof ApiError && e.status === 401 ? 'E-mail ou palavra-passe incorretos, ou e-mail por verificar.' : e instanceof ApiError && e.status === 429 ? 'Demasiadas tentativas. Aguarde alguns minutos e tente de novo.' : msg(e), `&next=${encodeURIComponent(next)}`); }
+  redirect(r === 'mfa' ? `/login/mfa?next=${encodeURIComponent(next)}` : next);
 }
 
 export async function registerAction(form: FormData) {
@@ -33,7 +37,7 @@ export async function registerAction(form: FormData) {
         token = await api<{ token: string }>(`/dev/verification-token?email=${encodeURIComponent(email)}`, { token: null }).then((r) => r.token, () => undefined);
         if (!token) await new Promise((r) => setTimeout(r, 300));
       }
-      if (token) { await api('/auth/verify-email', { token: null, body: { token } }); await login(email, password); }
+      if (token) { await api('/auth/verify-email', { token: null, body: { token } }); await login(email, password); } // conta nova: nunca tem MFA
     }
   } catch (e) { if (e instanceof ApiError && e.status === 409) return fail('/register', 'Este e-mail já está registado.'); return fail('/register', msg(e)); }
   redirect(SANDBOX ? '/' : '/login?registered=1');
@@ -67,7 +71,50 @@ export async function buyAction(form: FormData) {
 /** SANDBOX: aprova o pagamento simulado (assina e processa um webhook real). */
 export async function sandboxPayAction(form: FormData) {
   if (!SANDBOX) redirect('/');
-  const paymentId = field(form, 'payment_id');
+  const paymentId = field(form, 'payment_id'); const orderId = field(form, 'order_id');
   try { await api(`/dev/fake-pay/${paymentId}`, { method: 'POST' }); } catch (e) { return fail('/library', msg(e)); }
-  redirect('/library?purchased=1');
+  // Volta ao checkout: aí espera-se (de forma assíncrona) que o direito de leitura seja atribuído e só então se vai para a biblioteca.
+  redirect(`/checkout/${orderId}`);
+}
+
+/** 2.º passo do login: valida o código TOTP (ou de recuperação) contra o desafio guardado no cookie. */
+export async function mfaVerifyAction(form: FormData) {
+  const jar = await cookies(); const next = safeNext(field(form, 'next')); const challenge = jar.get(COOKIE.mfa)?.value;
+  if (!challenge) return fail('/login', 'A verificação expirou. Entre de novo.', `&next=${encodeURIComponent(next)}`);
+  try {
+    const t = await api<Tokens>('/auth/mfa/verify', { token: null, body: { challenge_id: challenge, code: field(form, 'code') } });
+    jar.delete(COOKIE.mfa); writeTokens(jar, t);
+  } catch (e) {
+    if (e instanceof Error && (e as any).digest?.startsWith?.('NEXT_REDIRECT')) throw e;
+    console.error('[mfaVerify]', e instanceof ApiError ? `API ${e.status}: ${e.message}` : e);
+    if (e instanceof ApiError && e.status === 429) return fail('/login/mfa', 'Demasiadas tentativas. Aguarde alguns minutos.', `&next=${encodeURIComponent(next)}`);
+    if (e instanceof ApiError && e.status === 401 && /expirado|inválido/i.test(String(e.message)) && !/Código/.test(String(e.message))) return fail('/login', 'A verificação expirou. Entre de novo.', `&next=${encodeURIComponent(next)}`);
+    return fail('/login/mfa', 'Código inválido.', `&next=${encodeURIComponent(next)}`);
+  }
+  redirect(next);
+}
+
+export interface EnrollState { error?: string; secret?: string; qr?: string; recovery_codes?: string[]; done?: boolean }
+
+/** Inicia a inscrição: gera o segredo (cifrado no servidor) e devolve QR + segredo para mostrar UMA vez. */
+export async function mfaEnrollAction(): Promise<EnrollState> {
+  try {
+    const r = await api<{ secret: string; otpauth_uri: string }>('/auth/mfa/enroll', { method: 'POST' });
+    return { secret: r.secret, qr: await QRCode.toDataURL(r.otpauth_uri, { margin: 1, width: 220 }) };
+  } catch (e) { return { error: e instanceof ApiError && e.status === 409 ? 'O MFA já está ativo.' : msg(e) }; }
+}
+
+/** Confirma com um código da app; o servidor devolve um access token já com MFA verificado e os códigos de recuperação. */
+export async function mfaConfirmAction(prev: EnrollState, form: FormData): Promise<EnrollState> {
+  try {
+    const r = await api<{ recovery_codes: string[]; access_token: string; expires_in: number }>('/auth/mfa/confirm', { body: { code: field(form, 'code') } });
+    const jar = await cookies(); jar.set(COOKIE.access, r.access_token, { ...cookieBase, maxAge: r.expires_in });
+    return { done: true, recovery_codes: r.recovery_codes };
+  } catch (e) { return { ...prev, error: e instanceof ApiError && e.status === 401 ? 'Código inválido. Verifique a hora do telemóvel e tente de novo.' : msg(e) }; }
+}
+
+export async function mfaDisableAction(form: FormData) {
+  try { await api('/auth/mfa/disable', { body: { code: field(form, 'code') } }); }
+  catch (e) { return fail('/account/security', e instanceof ApiError && e.status === 403 ? 'Os administradores não podem desativar o MFA.' : e instanceof ApiError && e.status === 429 ? 'Demasiadas tentativas.' : 'Código inválido.'); }
+  redirect('/account/security?disabled=1');
 }

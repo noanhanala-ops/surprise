@@ -4,25 +4,15 @@ import request from 'supertest';
 import { Pool } from 'pg';
 
 import JSZip from 'jszip';
-import { sha, makeEpub } from './helpers';
+import { sha, makeEpub, setup } from './helpers';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/setup';
 
 describe('Catalog / Publisher / Content / Admin (e2e, PostgreSQL real)', () => {
-  let app: INestApplication; let pool: Pool; let http: any;
+  let app: INestApplication; let pool: Pool; let http: any; let newUser: (tag: string, roles?: string[]) => Promise<any>;
   const run = Date.now();
   const password = 'correct horse battery';
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
-
-  async function newUser(tag: string, roles: string[] = []) {
-    const email = `${tag}${run}@cat.test`;
-    await request(http).post('/v1/auth/register').send({ email, password, display_name: tag, country_code: 'MZ' }).expect(201);
-    const { rows } = await pool.query(`SELECT payload->>'token' t FROM outbox_events WHERE payload->>'email'=$1`, [email]);
-    await request(http).post('/v1/auth/verify-email').send({ token: rows[0].t }).expect(204);
-    for (const r of roles) await pool.query(`INSERT INTO user_roles SELECT u.id, r.id FROM users u, roles r WHERE u.email=$1 AND r.name=$2`, [email, r]);
-    const tk = (await request(http).post('/v1/auth/login').send({ email, password }).expect(200)).body.access_token as string;
-    return { email, token: tk };
-  }
 
   /** Percorre todas as páginas do catálogo (a BD de dev acumula livros de outras execuções). */
   async function listAll(country: string | undefined, query = '') {
@@ -38,9 +28,7 @@ describe('Catalog / Publisher / Content / Admin (e2e, PostgreSQL real)', () => {
   let publisherId: string, editionId: string, slug: string;
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = configureApp(mod.createNestApplication()); await app.init(); http = app.getHttpServer();
+    ({ app, pool, http, newUser } = await setup());
     admin = await newUser('admin', ['admin_catalog']); pub = await newUser('pub'); other = await newUser('other'); customer = await newUser('cust');
   });
   afterAll(async () => { await pool.end(); await app.close(); });

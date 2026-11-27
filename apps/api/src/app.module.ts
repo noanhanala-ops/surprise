@@ -11,6 +11,7 @@ import { CatalogService } from './catalog/catalog.service';
 import { UploadController } from './content/upload.controller';
 import { UploadService } from './content/upload.service';
 import { EventsModule } from './events/events.module';
+import { RateLimitModule } from './security/rate-limit.module';
 import { EventBus } from './events/event-bus';
 import { FakeProvider } from './payments/fake.provider';
 import { ProviderRegistry } from './payments/provider.registry';
@@ -44,7 +45,7 @@ class HealthController {
 }
 
 @Module({
-  imports: [DbModule, EventsModule, IdentityModule],
+  imports: [DbModule, EventsModule, RateLimitModule, IdentityModule],
   controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController, CommerceController, PaymentsController, EntitlementsController, ReadingController, ReaderController, DevController, DevMailController],
   providers: [PublisherService, AdminService, CatalogService, UploadService, FakeProvider, ProviderRegistry, PaymentsService, CommerceService, RefundsService,
     EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, ReadingService, ReaderService, NotificationsConsumer, storageProvider],

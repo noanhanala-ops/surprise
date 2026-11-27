@@ -20,3 +20,5 @@ export class LoginDto {
 }
 export class RefreshDto { @IsString() @MaxLength(200) refresh_token: string; }
 export class VerifyEmailDto { @IsString() @MaxLength(2000) token: string; }
+export class MfaVerifyDto { @IsString() @MaxLength(2000) challenge_id: string; @IsString() @Length(6, 12) code: string; }
+export class MfaCodeDto { @IsString() @Length(6, 12) code: string; }

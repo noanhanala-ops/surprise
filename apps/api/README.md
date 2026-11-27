@@ -7,6 +7,10 @@
 | `JWT_SECRET` | sim | ≥ 32 caracteres |
 | `RABBITMQ_URL` | não | Se definida usa RabbitMQ; senão barramento em processo (só dev/testes). `RABBITMQ_PREFIX`, `RABBITMQ_MAX_RETRIES` (5), `RABBITMQ_RETRY_DELAY_MS` (5000) |
 | `S3_BUCKET` | não | Se definida usa S3/R2/MinIO com **upload directo por URL pré-assinada**; senão disco local (`STORAGE_DIR`). `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT` (o que o cliente vê), `S3_REGION`, `S3_FORCE_PATH_STYLE`; credenciais via `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` |
+| `REDIS_URL` | recomendada | Rate limiting partilhado entre instâncias (`REDIS_PREFIX`). Sem ela usa memória **por processo** (só dev). |
+| `TRUST_PROXY` | atrás de proxy/CDN | Nº de saltos (`1`) ou `true`: usa `X-Forwarded-For` para o IP real. **Sem isto o rate limit por IP vê só o IP do proxy.** |
+| `MFA_ENC_KEY` | **sim em produção** | 32 bytes em base64 (`openssl rand -base64 32`); cifra os segredos TOTP. Fora de produção deriva-se do `JWT_SECRET`. |
+| `RATE_LOGIN_IP` · `RATE_LOGIN_FAILS` · `RATE_REGISTER_IP` · `RATE_MFA_FAILS` | não | Limites (por omissão 30/min · 5/15 min · 10/h · 5/5 min). Subir em ambientes de E2E que registam muitos utilizadores do mesmo IP. |
 | `OUTBOX_POLL_MS` | não | Intervalo do relay do outbox (500; `0` desliga) |
 | `FAKE_PROVIDER_SECRET` | dev | Fornecedor simulado; **desligado em `NODE_ENV=production`** |
 
@@ -15,8 +19,8 @@
 npm run build -w @drp/contracts
 npm test -w @drp/api                    # 67 e2e (PostgreSQL; sem RabbitMQ/S3)
 # com serviços reais (falha se faltarem variáveis):
-RABBITMQ_URL=amqp://guest:guest@localhost:5672 S3_ENDPOINT=http://localhost:9000 \
-AWS_ACCESS_KEY_ID=drp AWS_SECRET_ACCESS_KEY=drp_dev_only npm run test:infra -w @drp/api   # 14 testes
+RABBITMQ_URL=amqp://guest:guest@localhost:5672 S3_ENDPOINT=http://localhost:9000 REDIS_URL=redis://localhost:6379 \
+AWS_ACCESS_KEY_ID=drp AWS_SECRET_ACCESS_KEY=drp_dev_only npm run test:infra -w @drp/api   # 20 testes
 ```
 
 ## Garantias de entrega de eventos (RabbitMQ)

@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.7",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.3",
     "@types/react-dom": "^19.3.0",
     "typescript": "^5.9.3"
@@ -18,6 +19,7 @@
     "@readium/navigator": "~2.17.0",
     "@readium/shared": "~2.9.0",
     "next": "^16.4.6",
+    "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "server-only": "^0.0.1"

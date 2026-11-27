@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../identity/jwt-auth.guard';
-import { PermissionsGuard, RequirePermission } from '../identity/permissions.guard';
+import { PermissionsGuard, RequirePermission, RequireRecentMfa } from '../identity/permissions.guard';
 import { ContractDto, ReasonDto } from '../publisher/dto';
 import { AdminService } from './admin.service';
 import { RefundsService, RefundDecision } from '../commerce/refunds.service';
@@ -30,7 +30,7 @@ export class AdminController {
   @Post('books/:id/suspend') @HttpCode(204) @RequirePermission('catalog.book.suspend')
   async suspend(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() b: ReasonDto) { await this.svc.suspendEdition(u.id, id, b.reason); }
   @Get('refunds') @RequirePermission('refunds.decide') listRefunds() { return this.refunds.list('REQUESTED'); }
-  @Post('refunds/:id/decision') @HttpCode(200) @RequirePermission('refunds.decide')
+  @Post('refunds/:id/decision') @HttpCode(200) @RequirePermission('refunds.decide') @RequireRecentMfa(15)
   decide(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() b: RefundDecisionDto) { return this.refunds.decide(u.id, id, b); }
   @Post('payments/reconcile') @HttpCode(200) @RequirePermission('payments.read_all') reconcile() { return this.payments.reconcile(0); }
   @Get('content-jobs') @RequirePermission('content.processing.monitor') jobs() { return this.svc.contentJobs(); }

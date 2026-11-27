@@ -20,7 +20,7 @@ Estado: ✅ automatizado e a passar · 🟡 especificado, a implementar com o m�
 | AC-14 | Sem vulnerabilidades altas | 🟡 | CI: SCA/SAST |
 | AC-15 | Restauro de backup | 🟡 | tests/ops mensal |
 | AC-16 | Aprovação nas lojas | ⛔ | revisão Apple/Google |
-| AC-17 | Auditoria | ✅ (BD) + acções de catálogo/admin registadas | cadeia de hash imutável |
+| AC-17 | Auditoria | ✅ | cadeia de hash imutável; acções de catálogo/admin/reembolsos registadas. Falta: registar logins/MFA no `audit_log` |
 | AC-18 | Continuidade documentada | 🟡 | `docs/operations/CONTINUITY_POLICY.md` (revisão jurídica) |
 
 Testes financeiros já cobertos: compras concorrentes, webhook repetido, pagamento após falha/timeout, broker indisponível (outbox), reconciliação, reembolso total, livro suspenso após compra. **Por cobrir:** reembolso parcial por valor, conversão cambial, alteração de preço durante o checkout, editora suspensa.

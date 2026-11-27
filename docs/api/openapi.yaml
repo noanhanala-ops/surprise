@@ -36,7 +36,7 @@ paths:
     post:
       tags: [Identity]
       security: []
-      summary: Autenticar
+      summary: 'Autenticar. Com MFA ativo devolve só `mfa_challenge_id` (concluir em /auth/mfa/verify). 429 após falhas repetidas por conta/IP.'
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LoginRequest'}}}}
       responses:
         '200': {description: Tokens ou desafio MFA, content: {application/json: {schema: {$ref: '#/components/schemas/AuthResult'}}}}
@@ -70,9 +70,30 @@ paths:
   /auth/mfa/verify:
     post:
       tags: [Identity]
-      summary: Validar segundo factor
-      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [challenge_id, code], properties: {challenge_id: {type: string}, code: {type: string}}}}}}
-      responses: {'200': {description: Tokens, content: {application/json: {schema: {$ref: '#/components/schemas/AuthResult'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}}
+      security: []
+      summary: Concluir o login com o 2.º factor (TOTP de 6 dígitos ou código de recuperação). O `challenge_id` vem de /auth/login. Cada código TOTP só serve uma vez; tentativas limitadas.
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [challenge_id, code], properties: {challenge_id: {type: string}, code: {type: string, minLength: 6, maxLength: 12}}}}}}
+      responses: {'200': {description: Tokens (sessão com MFA verificado), content: {application/json: {schema: {$ref: '#/components/schemas/AuthResult'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}, '429': {$ref: '#/components/responses/TooManyRequests'}}
+  /auth/mfa/enroll:
+    post: {tags: [Identity], summary: Iniciar a inscrição TOTP (devolve segredo base32 e otpauth URI; segredo cifrado em repouso), responses: {'200': {description: Segredo e URI}, '409': {$ref: '#/components/responses/Conflict'}}}
+  /auth/mfa/confirm:
+    post:
+      tags: [Identity]
+      summary: Confirmar a inscrição com um código. Ativa o MFA, devolve 10 códigos de recuperação (mostrados uma única vez) e um access token já com MFA verificado.
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [code], properties: {code: {type: string}}}}}}
+      responses: {'200': {description: Códigos de recuperação + access token}, '401': {$ref: '#/components/responses/Unauthorized'}}
+  /auth/mfa/step-up:
+    post:
+      tags: [Identity]
+      summary: Reautenticar com MFA para operações sensíveis (resposta a 403 STEP_UP_REQUIRED). Devolve novo access token.
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [code], properties: {code: {type: string}}}}}}
+      responses: {'200': {description: Novo access token}, '401': {$ref: '#/components/responses/Unauthorized'}, '429': {$ref: '#/components/responses/TooManyRequests'}}
+  /auth/mfa/disable:
+    post:
+      tags: [Identity]
+      summary: Desativar o MFA (exige código válido; proibido a administradores)
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [code], properties: {code: {type: string}}}}}}
+      responses: {'204': {description: Desativado}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}}
   /users/me:
     get: {tags: [Identity], summary: Consultar perfil, responses: {'200': {description: Perfil, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}}}
   /users/me/devices:
@@ -302,7 +323,7 @@ components:
     IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 8, maxLength: 128}}
   responses:
     Unauthorized: {description: Não autenticado, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
-    Forbidden: {description: Sem permissão/direito, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Forbidden: {description: 'Sem permissão/direito. Códigos: MFA_REQUIRED (administradores sem sessão MFA), STEP_UP_REQUIRED (operação sensível: repetir MFA)', content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
     NotFound: {description: Não encontrado, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
     Conflict: {description: Conflito (duplicado/estado inválido), content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
     ValidationError: {description: Validação falhou, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}

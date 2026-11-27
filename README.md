@@ -8,7 +8,7 @@ Fase 0 concluída; **Fase 1 iniciada** (módulo Identity). Já validado:
 
 | Artefacto | Local | Validação |
 |---|---|---|
-| DDL PostgreSQL (5 migrações, 58 tabelas + 1 vista) + seeds RBAC | `database/migrations`, `database/seeds` | aplicado em PostgreSQL 16 |
+| DDL PostgreSQL (6 migrações, 58 tabelas + 1 vista) + seeds RBAC | `database/migrations`, `database/seeds` | aplicado em PostgreSQL 16 |
 | Invariantes de BD (24 testes) | `database/tests/invariants.sql` | passam |
 | Contrato OpenAPI 3 (55 operações) | `docs/api/openapi.yaml` | `scripts/check_openapi.py` |
 | 9 ADRs | `docs/adr` | — |
@@ -16,10 +16,11 @@ Fase 0 concluída; **Fase 1 iniciada** (módulo Identity). Já validado:
 | **API NestJS — módulo Identity** (registo, verificação de e-mail via outbox, login Argon2id, refresh com rotação e deteção de reutilização, dispositivos) | `apps/api` | 10 testes e2e em PostgreSQL real |
 | **Catalog, Publisher, Content (validação EPUB/PDF/CBZ), Admin (aprovação, contratos, territórios, suspensão), RBAC e auditoria** | `apps/api` | +15 testes e2e |
 | **Commerce, Payments (porta + FakeProvider), Outbox/Inbox, Entitlements, biblioteca/acesso, reembolsos, Royalty ledger, reconciliação** | `apps/api` | 47 testes e2e |
-| **Reading API** (progresso versionado multi-dispositivo, marcadores, destaques+notas, sync incremental, preferências) | `apps/api` | 68 testes e2e em PostgreSQL real |
+| **Reading API** (progresso versionado multi-dispositivo, marcadores, destaques+notas, sync incremental, preferências) | `apps/api` | 92 testes em PostgreSQL real |
 | **Servidor de publicação Readium** (manifesto, lista de posições e recursos do EPUB, com direito revalidado em cada pedido) + pagamento sandbox | `apps/api/src/reader` | 6 testes |
 | **App web Next.js** (loja, detalhe, registo/login, checkout sandbox, biblioteca; sessão em cookies httpOnly via BFF) + capas públicas + seed de demonstração | `apps/web/storefront`, `apps/api/scripts` | 8 testes E2E em Chromium contra a pilha completa (`tests/e2e`) |
 | **Leitor web Readium** (EPUB, índice, marcadores, temas/tamanho, retoma, sincronização com deteção de conflito entre dispositivos) | `apps/web/storefront/components/Reader.tsx`, `docs/reader/READER_SPEC.md` | 7 testes E2E em Chromium (total 15 E2E) |
+| **Segurança P0: MFA TOTP** (obrigatório a administradores, «MFA recente» em reembolsos, códigos de recuperação), **rate limiting em Redis** (conta/IP/registo/MFA), UI de MFA com QR | `apps/api/src/{identity,security}`, `docs/adr/0011-*` | 24 testes novos (RFC 6238, anti-replay, step-up) + 6 Redis real + 5 E2E MFA |
 | Modelo de segurança e ameaças | `docs/security/SECURITY.md` | — |
 | **Adaptadores de produção: RabbitMQ** (confirmações, retry, dead-letter, reconexão) **e S3/R2/MinIO** (upload directo por URL pré-assinada) | `apps/api`, ADR-0010 | 14 testes contra RabbitMQ e S3 reais (`npm run test:infra`) |
 | Análise de licenças dos 5 repositórios indicados | `docs/architecture/OPEN_SOURCE_REUSE.md` | licenças lidas dos LICENSE |
@@ -37,7 +38,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/tests/invariants.sql
 
 ## Próxima milestone (demo vertical)
 Admin publica um EPUB licenciado → utilizador regista-se → compra em sandbox (`FakeProvider`) → webhook → entitlement permanente → lê no browser (Readium Web).
-Ordem sugerida: ~~Identity~~ ✅ → ~~Catalog/Content~~ ✅ ~~→ Commerce/Payments(+outbox) → Entitlements~~ ✅ ~~→ Reading API~~ ✅ → ~~Loja web~~ ✅ → ~~Leitor web (Readium)~~ ✅ → destaques/notas na UI, PDF.js, apps nativas, MFA/rate-limit.
+Ordem sugerida: ~~Identity~~ ✅ → ~~Catalog/Content~~ ✅ ~~→ Commerce/Payments(+outbox) → Entitlements~~ ✅ ~~→ Reading API~~ ✅ → ~~Loja web~~ ✅ → ~~Leitor web (Readium)~~ ✅ → ~~Segurança P0 (MFA + rate limit)~~ ✅ → portais Admin/Editoras (UI), destaques/notas na UI, PDF.js, recuperação de palavra-passe, impostos, apps nativas.
 
 ## Notas
 - `index.html` na raiz é uma página pessoal pré-existente, alheia à plataforma; não foi alterada.

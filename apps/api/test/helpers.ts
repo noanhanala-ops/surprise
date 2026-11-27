@@ -11,9 +11,12 @@ process.env.JWT_SECRET = 'test-secret-test-secret-test-secret-123';
 process.env.DATABASE_URL ??= 'postgres://postgres@localhost:5544/drp';
 process.env.STORAGE_DIR ??= join(tmpdir(), `drp-storage-${Date.now()}`);
 process.env.SANDBOX_MODE = 'true';
+// Os limites por IP/conta são testados em security.e2e-spec.ts; aqui não atrapalham (todos os pedidos vêm de 127.0.0.1).
+for (const k of ['RATE_LOGIN_IP', 'RATE_REGISTER_IP']) process.env[k] ??= '100000';
 process.env.OUTBOX_POLL_MS = '0'; // testes accionam o relay explicitamente
 
 import { AppModule } from '../src/app.module';
+import { totp, base32Decode } from '../src/identity/totp';
 import { configureApp } from '../src/setup';
 
 export const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
@@ -23,7 +26,10 @@ export const password = 'correct horse battery';
 export { makeEpub, makeRichEpub, makePng } from '../fixtures/epub';
 import { makeEpub } from '../fixtures/epub';
 
-export interface Ctx { app: INestApplication; pool: Pool; http: any; run: number; newUser: (tag: string, roles?: string[]) => Promise<{ email: string; token: string; id: string }> }
+export const totpNow = (secretB32: string, offsetSteps = 0) => totp(base32Decode(secretB32), Date.now() + offsetSteps * 30_000);
+export const isAdminRole = (r: string) => r.startsWith('admin_') || r === 'super_admin';
+export interface TestUser { email: string; token: string; id: string; mfaSecret?: string; recoveryCodes?: string[] }
+export interface Ctx { app: INestApplication; pool: Pool; http: any; run: number; newUser: (tag: string, roles?: string[]) => Promise<TestUser> }
 
 export async function setup(): Promise<Ctx> {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -36,8 +42,13 @@ export async function setup(): Promise<Ctx> {
     const { rows } = await pool.query(`SELECT payload->>'token' t FROM outbox_events WHERE payload->>'email'=$1`, [email]);
     await request(http).post('/v1/auth/verify-email').send({ token: rows[0].t }).expect(204);
     for (const r of roles) await pool.query(`INSERT INTO user_roles SELECT u.id, r.id FROM users u, roles r WHERE u.email=$1 AND r.name=$2`, [email, r]);
-    const token = (await request(http).post('/v1/auth/login').send({ email, password }).expect(200)).body.access_token as string;
-    return { email, token, id: (await pool.query(`SELECT id FROM users WHERE email=$1`, [email])).rows[0].id as string };
+    let token = (await request(http).post('/v1/auth/login').send({ email, password }).expect(200)).body.access_token as string;
+    const id = (await pool.query(`SELECT id FROM users WHERE email=$1`, [email])).rows[0].id as string;
+    if (!roles.some(isAdminRole)) return { email, token, id };
+    // Administradores têm de usar MFA: inscreve e confirma (a confirmação devolve um token com MFA verificado).
+    const enr = (await request(http).post('/v1/auth/mfa/enroll').set(auth(token)).expect(200)).body;
+    const conf = (await request(http).post('/v1/auth/mfa/confirm').set(auth(token)).send({ code: totpNow(enr.secret) }).expect(200)).body;
+    return { email, token: conf.access_token as string, id, mfaSecret: enr.secret as string, recoveryCodes: conf.recovery_codes as string[] };
   }
   return { app, pool, http, run, newUser };
 }
