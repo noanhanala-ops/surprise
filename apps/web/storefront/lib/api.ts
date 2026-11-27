@@ -37,8 +37,15 @@ export async function authed<T = any>(path: string, next: string, o: ApiOpts = {
   }
 }
 
+/** Para páginas de portal: devolve o resultado em vez de lançar, para mostrar "sem permissões"/"ative o MFA" em vez de uma página de erro. */
+export type Safe<T> = { ok: true; data: T } | { ok: false; status: number; code?: string; message: string };
+export async function safe<T = any>(path: string, next: string, o: ApiOpts = {}): Promise<Safe<T>> {
+  try { return { ok: true, data: await authed<T>(path, next, o) }; }
+  catch (e) { if (e instanceof ApiError) return { ok: false, status: e.status, code: e.body?.code, message: e.message }; throw e; }
+}
+
 export async function currentUser() {
   const jar = await cookies();
   if (!jar.get(COOKIE.access) && !jar.get(COOKIE.refresh)) return null;
-  try { return await api<{ id: string; email: string; display_name: string; country_code: string }>('/users/me'); } catch { return null; }
+  try { return await api<{ id: string; email: string; display_name: string; country_code: string; roles: string[]; is_admin: boolean; mfa_enabled: boolean }>('/users/me'); } catch { return null; }
 }

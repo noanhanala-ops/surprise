@@ -6,6 +6,7 @@
 | CSRF nas mutações do BFF | Lista de permissões fechada + cabeçalho `X-Requested-With: drp` (não-simples) | `web-flow.test.mjs` |
 | **EPUB malicioso com scripts** (os iframes do Readium usam `allow-same-origin allow-scripts`) | Upload **rejeita** `<script>`, handlers `on*`, `javascript:` e `properties="scripted"`; CSP do Readium nos frames (`connect-src 'none'`, `form-action 'none'`) | `catalog.e2e-spec.ts` |
 | Acesso a conteúdo sem compra / após reembolso | Token curto + **direito revalidado em cada pedido** | `reader.e2e-spec.ts`, `commerce.e2e-spec.ts` |
+| Uma editora a ver dados de outra / editora não aprovada a publicar | Todas as consultas e escritas filtram pela pertença à editora (`publisher_users`); papéis (OWNER/EDITOR/FINANCE/VIEWER) — royalties e pagamentos só OWNER/FINANCE; editora PENDING é recusada pela API | `portals-api.e2e-spec.ts`, `portals-flow.test.mjs` |
 | Leitura de ficheiros internos do EPUB / path traversal | Só recursos do manifesto; `..` bloqueado | `reader.e2e-spec.ts` |
 | Token de leitura no URL (logs, Referer) | Validade 1 h, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`; **não registar URLs `/v1/read/*` nos logs** (pendente: filtro de logs) | — |
 | Pagamento simulado em produção | `SANDBOX_MODE` explícito; a API **recusa arrancar** com `NODE_ENV=production`+`SANDBOX_MODE=true`; endpoints `dev/*` 404 | `sandbox.e2e-spec.ts` |

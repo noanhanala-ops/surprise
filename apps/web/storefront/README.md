@@ -19,8 +19,8 @@ cd apps/api && DATABASE_URL=… JWT_SECRET=… SANDBOX_MODE=true PORT=3001 node 
 DATABASE_URL=… API_URL=http://localhost:3001 npm run seed:demo -w @drp/api
 # Web
 cd apps/web/storefront && API_URL=http://localhost:3001 SANDBOX_MODE=true npm run build && API_URL=http://localhost:3001 SANDBOX_MODE=true npm start
-# E2E no browser (Chromium + Playwright)
-node --test tests/e2e/web-flow.test.mjs
+# E2E no browser (Chromium + Playwright). Subir os limites de rate limit da API (muitos registos do mesmo IP) e ter psql + DATABASE_URL
+RATE_REGISTER_IP=100000 RATE_LOGIN_IP=100000 RATE_LOGIN_FAILS=50 (na API) ; DATABASE_URL=… npm run e2e:web
 ```
 
 ## Notas

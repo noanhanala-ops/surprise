@@ -5,7 +5,7 @@ Estado: ✅ automatizado e a passar · 🟡 especificado, a implementar com o m�
 | ID | Critério | Estado | Onde |
 |---|---|---|---|
 | AC-01 | Registo e verificação | ✅ | `apps/api/test/identity.e2e-spec.ts` |
-| AC-02 | Isolamento de dados | 🟡 | Catalog/Publisher ✅ (edição alheia → 404); falta orders/library/reading |
+| AC-02 | Isolamento de dados | ✅ (parcial) | Catálogo/Publisher/Portais (`portals-api.e2e-spec.ts`: editora vê só o seu; royalties só OWNER/FINANCE), orders, library e reading (IDOR → 404/403). Falta pentest |
 | AC-03 | Edição/formatos validados | ✅ | `catalog.e2e-spec.ts` (submissão exige formato READY + preço; aprovação exige contrato) |
 | AC-04 | Territórios | ✅ | BD `edition_sellable_in` + API `catalog.e2e-spec.ts` (MZ vê, KP não) |
 | AC-05 | Upload inválido rejeitado | ✅ (EPUB/PDF/CBZ/imagem) | `catalog.e2e-spec.ts`. Antivírus (ClamAV) ainda por integrar |

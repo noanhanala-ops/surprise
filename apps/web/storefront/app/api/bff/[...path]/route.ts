@@ -9,6 +9,8 @@ import { clearTokens, writeTokens, Tokens } from '@/lib/session';
  */
 const ALLOWED: Array<[RegExp, string[]]> = [
   [/^reading\/preferences$/, ['GET', 'PUT']],
+  [/^publisher\/books\/[0-9a-f-]{36}\/assets$/, ['POST']], // pedir URL de upload
+  [/^uploads\/complete$/, ['POST']], // concluir upload directo ao bucket
   [/^reading\/[0-9a-f-]{36}\/(progress|annotations)$/, ['GET', 'PUT']],
   [/^reading\/[0-9a-f-]{36}\/(bookmarks|highlights|session)$/, ['POST']],
   [/^reading\/[0-9a-f-]{36}\/(bookmarks|highlights)\/[0-9a-f-]{36}$/, ['DELETE']],

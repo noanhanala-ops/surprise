@@ -137,10 +137,11 @@ export class IdentityService {
 
   async me(userId: string) {
     const r = await this.db.query(
-      `SELECT u.id, u.email, u.country_code, u.mfa_enabled, p.display_name, p.locale
+      `SELECT u.id, u.email, u.country_code, u.mfa_enabled, p.display_name, p.locale,
+              COALESCE((SELECT array_agg(ro.name::text ORDER BY ro.name) FROM user_roles ur JOIN roles ro ON ro.id=ur.role_id WHERE ur.user_id=u.id), '{}'::text[]) AS roles
          FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id WHERE u.id=$1`, [userId]);
     if (!r.rowCount) throw new NotFoundException();
-    return r.rows[0];
+    return { ...r.rows[0], is_admin: r.rows[0].roles.some((x: string) => x.startsWith('admin_') || x === 'super_admin') };
   }
 
   async listDevices(userId: string) {
