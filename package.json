@@ -1,0 +1,11 @@
+{
+  "name": "digital-reading-platform",
+  "private": true,
+  "workspaces": ["apps/*", "apps/web/*", "apps/workers/*", "packages/*"],
+  "scripts": {
+    "db:migrate": "database/migrate.sh --seed",
+    "db:test": "psql \"$DATABASE_URL\" -q -v ON_ERROR_STOP=1 -f database/tests/invariants.sql",
+    "docs:check": "python3 scripts/check_openapi.py"
+  },
+  "engines": { "node": ">=22" }
+}
