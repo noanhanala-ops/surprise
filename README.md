@@ -4,6 +4,8 @@ Livraria digital global com marketplace de editoras/autores, **compra individual
 Monólito modular (NestJS) + workers · PostgreSQL · Redis · RabbitMQ · S3 · OpenSearch · Readium + PDF.js.
 
 ## Estado
+**CI verificado no GitHub Actions** (run #6, 6/6 jobs verdes): base de dados, contratos OpenAPI, API (99 testes), web (typecheck+build), infra real (RabbitMQ, Redis, S3 emulado: 20 testes) e E2E no Chromium (30 testes). Corre em `pull_request`, `push` para `main`/`claude/**` e manualmente.
+
 Fase 0 concluída; **Fase 1 iniciada** (módulo Identity). Já validado:
 
 | Artefacto | Local | Validação |
