@@ -76,8 +76,10 @@ jobs:
         with: { node-version: 22 }
       - name: MinIO
         run: |
-          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=drp -e MINIO_ROOT_PASSWORD=drp_dev_only minio/minio server /data
-          for i in $(seq 1 30); do curl -sf localhost:9000/minio/health/live && break; sleep 1; done
+          # imagem oficial no quay.io (o Docker Hub deixou de ter versões recentes de minio/minio)
+          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=drp -e MINIO_ROOT_PASSWORD=drp_dev_only quay.io/minio/minio server /data
+          for i in $(seq 1 30); do curl -sf localhost:9000/minio/health/live && exit 0; sleep 1; done
+          echo '::error::MinIO não arrancou'; docker ps -a; docker logs minio; exit 1
       - run: database/migrate.sh --seed
       - run: npm ci
       - run: npm run build -w @drp/contracts
