@@ -10,8 +10,15 @@ export interface RefundDecision { decision: 'APPROVE' | 'REJECT'; reason: string
 export class RefundsService {
   constructor(private db: DbService, private audit: AuditService, private providers: ProviderRegistry) {}
 
+  /** Fila de reembolsos para o administrador, com o contexto necessário para decidir. */
   async list(status?: string) {
-    return (await this.db.query(`SELECT id, payment_attempt_id, order_item_id, amount_minor, reason, status, created_at FROM refunds WHERE ($1::text IS NULL OR status::text=$1) ORDER BY created_at DESC LIMIT 200`, [status ?? null])).rows;
+    return (await this.db.query(
+      `SELECT r.id, r.status::text AS status, r.amount_minor::bigint AS amount_minor, r.reason, r.created_at, o.id AS order_id, o.currency, u.email AS customer_email, b.title,
+              (r.reason LIKE 'Compra duplicada%') AS is_duplicate, en.status::text AS entitlement_status
+         FROM refunds r JOIN order_items oi ON oi.id=r.order_item_id JOIN orders o ON o.id=oi.order_id JOIN users u ON u.id=o.user_id
+         JOIN book_editions e ON e.id=oi.edition_id JOIN books b ON b.id=e.book_id LEFT JOIN entitlements en ON en.order_item_id=oi.id
+        WHERE ($1::text IS NULL OR r.status::text=$1) ORDER BY r.created_at DESC LIMIT 200`, [status ?? null]))
+      .rows.map((x) => ({ ...x, amount_minor: Number(x.amount_minor) }));
   }
 
   async decide(adminId: string, refundId: string, d: RefundDecision) {

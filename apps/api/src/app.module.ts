@@ -4,6 +4,7 @@ import { DbService } from './common/db.service';
 import { IdentityModule } from './identity/identity.module';
 import { PublisherController } from './publisher/publisher.controller';
 import { PublisherService } from './publisher/publisher.service';
+import { PublisherReportsService } from './publisher/publisher-reports.service';
 import { AdminController } from './admin/admin.controller';
 import { AdminService } from './admin/admin.service';
 import { CatalogController } from './catalog/catalog.controller';
@@ -47,7 +48,7 @@ class HealthController {
 @Module({
   imports: [DbModule, EventsModule, RateLimitModule, IdentityModule],
   controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController, CommerceController, PaymentsController, EntitlementsController, ReadingController, ReaderController, DevController, DevMailController],
-  providers: [PublisherService, AdminService, CatalogService, UploadService, FakeProvider, ProviderRegistry, PaymentsService, CommerceService, RefundsService,
+  providers: [PublisherService, PublisherReportsService, AdminService, CatalogService, UploadService, FakeProvider, ProviderRegistry, PaymentsService, CommerceService, RefundsService,
     EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, ReadingService, ReaderService, NotificationsConsumer, storageProvider],
 })
 export class AppModule {}

@@ -53,6 +53,15 @@ export async function setup(): Promise<Ctx> {
   return { app, pool, http, run, newUser };
 }
 
+/** Compra pelo caminho sandbox (pedido → checkout → webhook assinado → eventos entregues). Devolve o id da encomenda. */
+export async function buyBook(ctx: Ctx, user: { token: string }, editionId: string, currency = 'USD') {
+  const { http } = ctx; const key = () => `k-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+  const o = (await request(http).post('/v1/orders').set(auth(user.token)).set('Idempotency-Key', key()).send({ edition_ids: [editionId], currency, billing_country: 'MZ' }).expect(201)).body.id as string;
+  const p = (await request(http).post('/v1/payments/checkout').set(auth(user.token)).set('Idempotency-Key', key()).send({ order_id: o, method: 'fake' }).expect(201)).body.payment_id;
+  await request(http).post(`/v1/dev/fake-pay/${p}`).set(auth(user.token)).expect(200);
+  return o;
+}
+
 /** Publica uma edição de ponta a ponta (publisher + admin). Devolve ids e o EPUB enviado. */
 export async function publishBook(ctx: Ctx, admin: { token: string }, pub: { token: string }, o: { title: string; usd: number; epub?: Buffer; cover?: Buffer; commissionBps?: number; countries?: { country_code: string; permission_type: 'SELL' | 'DENY' }[]; publisherId?: string }) {
   const { http } = ctx;

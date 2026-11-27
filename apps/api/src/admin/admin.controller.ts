@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../identity/jwt-auth.guard';
 import { PermissionsGuard, RequirePermission, RequireRecentMfa } from '../identity/permissions.guard';
 import { ContractDto, ReasonDto } from '../publisher/dto';
@@ -29,7 +29,10 @@ export class AdminController {
   async reject(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() b: ReasonDto) { await this.svc.rejectEdition(u.id, id, b.reason); }
   @Post('books/:id/suspend') @HttpCode(204) @RequirePermission('catalog.book.suspend')
   async suspend(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() b: ReasonDto) { await this.svc.suspendEdition(u.id, id, b.reason); }
-  @Get('refunds') @RequirePermission('refunds.decide') listRefunds() { return this.refunds.list('REQUESTED'); }
+  @Get('publishers') @RequirePermission('catalog.publisher.approve') publishers(@Query('status') status?: string) { return this.svc.pendingPublishers(status); }
+  @Get('books') @RequirePermission('catalog.book.approve') books(@Query('status') status?: string) { return this.svc.editionsByStatus(status); }
+  @Get('books/:id') @RequirePermission('catalog.book.approve') book(@Param('id', ParseUUIDPipe) id: string) { return this.svc.editionDetail(id); }
+  @Get('refunds') @RequirePermission('refunds.decide') listRefunds(@Query('status') status?: string) { return this.refunds.list(status ?? 'REQUESTED'); }
   @Post('refunds/:id/decision') @HttpCode(200) @RequirePermission('refunds.decide') @RequireRecentMfa(15)
   decide(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() b: RefundDecisionDto) { return this.refunds.decide(u.id, id, b); }
   @Post('payments/reconcile') @HttpCode(200) @RequirePermission('payments.read_all') reconcile() { return this.payments.reconcile(0); }

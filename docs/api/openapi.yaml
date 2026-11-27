@@ -258,6 +258,7 @@ paths:
     get: {tags: [Publisher], summary: Listar edições da(s) minha(s) editora(s), responses: {'200': {description: Edições}}}
     post: {tags: [Publisher], summary: Submeter livro/edição, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PublisherBookInput'}}}}, responses: {'201': {description: Submetido em DRAFT}}}
   /publisher/books/{id}:
+    get: {tags: [Publisher], summary: 'Detalhe da edição para o portal: preços, ficheiros (estado e motivo de rejeição), capas, contratos, último motivo de rejeição editorial', parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Detalhe}, '404': {$ref: '#/components/responses/NotFound'}}}
     put: {tags: [Publisher], summary: Actualizar livro, parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PublisherBookInput'}}}}, responses: {'200': {description: Actualizado}}}
   /publisher/books/{id}/assets:
     post:
@@ -299,6 +300,14 @@ paths:
       summary: Criar contrato de direitos com territórios (perm contracts.manage)
       requestBody: {required: true, content: {application/json: {schema: {type: object, required: [edition_id, commission_bps, start_at, territories], properties: {edition_id: {type: string, format: uuid}, commission_bps: {type: integer, minimum: 0, maximum: 10000}, start_at: {type: string, format: date-time}, end_at: {type: string, format: date-time}, territories: {type: array, items: {type: object, required: [country_code, permission_type], properties: {country_code: {type: string, description: 'ISO-3166 alpha-2 ou WW (mundo)'}, permission_type: {type: string, enum: [SELL, DENY]}}}}}}}}}
       responses: {'201': {description: Contrato criado}}
+  /publisher/me:
+    get: {tags: [Publisher], summary: Editoras do utilizador autenticado e respetivo papel, responses: {'200': {description: Lista}}}
+  /admin/publishers:
+    get: {tags: [Admin], summary: 'Editoras por estado (por omissão PENDING), com e-mail do dono (perm catalog.publisher.approve)', parameters: [{name: status, in: query, schema: {type: string}}], responses: {'200': {description: Editoras}}}
+  /admin/books:
+    get: {tags: [Admin], summary: 'Edições por estado (por omissão IN_REVIEW) para a fila de revisão (perm catalog.book.approve)', parameters: [{name: status, in: query, schema: {type: string}}], responses: {'200': {description: Edições}}}
+  /admin/books/{id}:
+    get: {tags: [Admin], summary: 'Detalhe para decidir: ficheiros e metadados, preços, contratos/territórios, histórico', parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Detalhe}, '404': {$ref: '#/components/responses/NotFound'}}}
   /admin/publishers/{id}/approve: {post: {tags: [Admin], summary: Aprovar editora (perm catalog.publisher.approve), parameters: [{$ref: '#/components/parameters/Id'}], responses: {'204': {description: Aprovada}}}}
   /admin/books/{id}/approve: {post: {tags: [Admin], summary: Aprovar edição, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'204': {description: Aprovada}}}}
   /admin/books/{id}/reject: {post: {tags: [Admin], summary: Rejeitar edição, parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReasonBody'}}}}, responses: {'204': {description: Rejeitada}}}}

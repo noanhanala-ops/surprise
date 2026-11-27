@@ -27,8 +27,7 @@ describe('Servidor de publicação Readium: manifesto, posições e recursos (e2
     const intent = (await request(ctx.http).post(`/v1/publisher/books/${draft}/assets`).set(auth(pub.token)).send({ kind: 'COVER', mime_type: 'image/png', size_bytes: png.length, checksum_sha256: sha(png) }).expect(201)).body;
     await request(ctx.http).put(new URL(intent.url).pathname).set('Content-Type', 'application/octet-stream').send(png).expect(201);
     await request(ctx.http).get(`/v1/covers/${draft}`).set('x-country', 'MZ').expect(404); // rascunho: não público
-    const list = (await request(ctx.http).get('/v1/books?limit=100').set('x-country', 'MZ')).body.items;
-    expect(list.find((b: any) => b.edition_id === ed.editionId).cover_url).toBeNull(); // este livro não tem capa
+    expect((await request(ctx.http).get(`/v1/books/${ed.slug}`).set('x-country', 'MZ').expect(200)).body.cover_url).toBeNull(); // este livro não tem capa
     // publicar um livro com capa
     const b2 = await publishBook(ctx, admin, pub, { title: `ComCapa ${ctx.run}`, usd: 200, publisherId: ed.publisherId, cover: png });
     const c = await request(ctx.http).get(`/v1/covers/${b2.editionId}`).set('x-country', 'MZ').buffer(true).parse((res, cb) => { const ch: Buffer[] = []; res.on('data', (d: Buffer) => ch.push(d)); res.on('end', () => cb(null, Buffer.concat(ch))); }).expect(200).expect('Content-Type', 'image/png').expect('Cache-Control', /public/);

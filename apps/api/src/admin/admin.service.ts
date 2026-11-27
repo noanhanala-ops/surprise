@@ -65,6 +65,39 @@ export class AdminService {
     });
   }
 
+  async pendingPublishers(status = 'PENDING') {
+    return (await this.db.query(
+      `SELECT p.id, p.legal_name, p.display_name, p.country_code, p.status::text AS status, p.is_individual_author, p.created_at,
+              (SELECT u.email FROM publisher_users pu JOIN users u ON u.id=pu.user_id WHERE pu.publisher_id=p.id AND pu.role='OWNER' LIMIT 1) AS owner_email
+         FROM publishers p WHERE p.status::text = $1 ORDER BY p.created_at LIMIT 200`, [status])).rows;
+  }
+
+  async editionsByStatus(status = 'IN_REVIEW') {
+    return (await this.db.query(
+      `SELECT e.id, b.title, e.status::text AS status, e.language_code, p.display_name AS publisher, p.id AS publisher_id,
+              EXISTS (SELECT 1 FROM rights_contracts k WHERE k.book_edition_id=e.id AND k.status='ACTIVE') AS has_contract,
+              (SELECT count(*)::int FROM book_prices x WHERE x.book_edition_id=e.id AND x.effective_to IS NULL) AS prices, e.created_at
+         FROM book_editions e JOIN books b ON b.id=e.book_id JOIN publishers p ON p.id=e.publisher_id WHERE e.status::text=$1 ORDER BY e.created_at LIMIT 200`, [status])).rows;
+  }
+
+  /** Tudo o que o revisor precisa para decidir: ficheiros (com metadados extraídos), preços, contratos/territórios, histórico. */
+  async editionDetail(id: string) {
+    const e = (await this.db.query(
+      `SELECT e.id, e.status::text AS status, e.isbn, e.language_code, b.title, b.description, p.display_name AS publisher, p.id AS publisher_id, p.status::text AS publisher_status
+         FROM book_editions e JOIN books b ON b.id=e.book_id JOIN publishers p ON p.id=e.publisher_id WHERE e.id=$1`, [id])).rows[0];
+    if (!e) throw new NotFoundException();
+    const q = async (sql: string) => (await this.db.query(sql, [id])).rows;
+    const [prices, formats, contracts, history] = await Promise.all([
+      q(`SELECT currency, amount_minor::bigint AS amount_minor FROM book_prices WHERE book_edition_id=$1 AND effective_to IS NULL ORDER BY currency`),
+      q(`SELECT f.format::text AS format, v.version_number, v.processing_status::text AS status, v.rejection_reason, v.size_bytes::bigint AS size_bytes, v.metadata, (f.current_version_id=v.id) AS is_current
+           FROM book_formats f JOIN book_format_versions v ON v.book_format_id=f.id WHERE f.book_edition_id=$1 ORDER BY v.created_at DESC LIMIT 20`),
+      q(`SELECT k.id, k.status, k.start_at, k.end_at, k.commission_bps, (SELECT json_agg(json_build_object('country_code', t.country_code, 'permission_type', t.permission_type) ORDER BY t.country_code) FROM rights_territories t WHERE t.contract_id=k.id) AS territories
+           FROM rights_contracts k WHERE k.book_edition_id=$1 ORDER BY k.start_at DESC`),
+      q(`SELECT action, actor_type, reason, created_at FROM audit_log WHERE target_type='edition' AND target_id=$1::text ORDER BY id DESC LIMIT 30`),
+    ]);
+    return { ...e, prices: prices.map((x) => ({ ...x, amount_minor: Number(x.amount_minor) })), formats: formats.map((x) => ({ ...x, size_bytes: Number(x.size_bytes) })), contracts, history };
+  }
+
   async contentJobs() {
     return (await this.db.query(
       `SELECT j.id, j.stage, j.status, j.attempts, j.last_error, v.id AS format_version_id, v.processing_status, f.format, f.book_edition_id
