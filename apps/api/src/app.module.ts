@@ -15,6 +15,7 @@ import { EventBus } from './events/event-bus';
 import { FakeProvider } from './payments/fake.provider';
 import { ProviderRegistry } from './payments/provider.registry';
 import { PaymentsService } from './payments/payments.service';
+import { DevController } from './payments/dev.controller';
 import { PaymentsController } from './payments/payments.controller';
 import { CommerceService } from './commerce/commerce.service';
 import { CommerceController } from './commerce/commerce.controller';
@@ -24,6 +25,8 @@ import { EntitlementsService } from './entitlements/entitlements.service';
 import { EntitlementsController } from './entitlements/entitlements.controller';
 import { ReadingService } from './reading/reading.service';
 import { ReadingController } from './reading/reading.controller';
+import { ReaderController } from './reader/reader.controller';
+import { ReaderService } from './reader/reader.service';
 import { RoyaltyConsumer } from './royalty/royalty.consumer';
 import { LocalStorageService, StorageService } from './storage/storage.service';
 import { S3StorageService } from './storage/s3-storage.service';
@@ -41,8 +44,8 @@ class HealthController {
 
 @Module({
   imports: [DbModule, EventsModule, IdentityModule],
-  controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController, CommerceController, PaymentsController, EntitlementsController, ReadingController],
+  controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController, CommerceController, PaymentsController, EntitlementsController, ReadingController, ReaderController, DevController],
   providers: [PublisherService, AdminService, CatalogService, UploadService, FakeProvider, ProviderRegistry, PaymentsService, CommerceService, RefundsService,
-    EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, ReadingService, storageProvider],
+    EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, ReadingService, ReaderService, storageProvider],
 })
 export class AppModule {}

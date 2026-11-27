@@ -117,7 +117,7 @@ describe('Commerce → Payments → Entitlements → Royalty (e2e, PostgreSQL re
     expect(lib).toHaveLength(1); expect(lib[0]).toMatchObject({ edition_id: ed.editionId, formats: ['EPUB'] });
     await request(ctx.http).get(`/v1/library/${ed.editionId}/access`).set(auth(stranger.token)).expect(403);
     const g = (await request(ctx.http).get(`/v1/library/${ed.editionId}/access`).set(auth(buyer.token)).expect(200)).body;
-    const file = await request(ctx.http).get(g.manifest_url).buffer(true).parse((res, cb) => { const ch: Buffer[] = []; res.on('data', (d: Buffer) => ch.push(d)); res.on('end', () => cb(null, Buffer.concat(ch))); }).expect(200);
+    const file = await request(ctx.http).get(g.content_url).buffer(true).parse((res, cb) => { const ch: Buffer[] = []; res.on('data', (d: Buffer) => ch.push(d)); res.on('end', () => cb(null, Buffer.concat(ch))); }).expect(200);
     expect(Buffer.compare(file.body, ed.epub)).toBe(0);
     await request(ctx.http).get('/v1/content/garbage').expect(403);
   });

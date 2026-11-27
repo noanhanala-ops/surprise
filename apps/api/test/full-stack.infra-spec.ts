@@ -73,7 +73,7 @@ describe('Pilha completa: PostgreSQL + RabbitMQ + S3 reais', () => {
     expect(await ctx.app.get(OutboxRelay).relayOnce()).toBeGreaterThanOrEqual(1);
     await eventually(async () => (await request(ctx.http).get(`/v1/orders/${o}`).set(auth(buyer.token))).body.status === 'FULFILLED', 10000); // chegou via RabbitMQ
     const g = (await request(ctx.http).get(`/v1/library/${ed.editionId}/access`).set(auth(buyer.token)).expect(200)).body;
-    const file = await request(ctx.http).get(g.manifest_url).buffer(true).parse((res, cb) => { const ch: Buffer[] = []; res.on('data', (d: Buffer) => ch.push(d)); res.on('end', () => cb(null, Buffer.concat(ch))); }).expect(200);
+    const file = await request(ctx.http).get(g.content_url).buffer(true).parse((res, cb) => { const ch: Buffer[] = []; res.on('data', (d: Buffer) => ch.push(d)); res.on('end', () => cb(null, Buffer.concat(ch))); }).expect(200);
     expect(Buffer.compare(file.body, ed.epub)).toBe(0);
     expect((await ctx.pool.query(`SELECT count(*)::int n FROM entitlements WHERE user_id=$1`, [buyer.id])).rows[0].n).toBe(1);
     expect((await ctx.pool.query(`SELECT count(*)::int n FROM royalty_ledger rl JOIN order_items oi ON oi.id=rl.order_item_id WHERE oi.order_id=$1`, [o])).rows[0].n).toBe(1);

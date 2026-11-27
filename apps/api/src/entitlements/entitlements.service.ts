@@ -32,15 +32,18 @@ export class EntitlementsService {
         WHERE en.user_id=$1 AND en.book_edition_id=$2 AND en.status='ACTIVE' AND ($3::text IS NULL OR f.format::text=$3)
         ORDER BY (f.format='EPUB') DESC LIMIT 1`, [userId, editionId, format ?? null]);
     if (!r.rowCount) throw new ForbiddenException('Sem direito de acesso');
-    const ttl = 300;
-    const token = await this.jwt.signAsync({ purpose: 'content', sub: userId, ed: editionId, fmt: r.rows[0].format }, { expiresIn: ttl });
-    return { format: r.rows[0].format, manifest_url: `/v1/content/${token}`, lcp_license_url: null, expires_at: new Date(Date.now() + ttl * 1000).toISOString(), watermark: false };
+    const fmt = r.rows[0].format as string; const claims = { sub: userId, ed: editionId, fmt };
+    const ttl = 300; const readTtl = 3600;
+    const download = await this.jwt.signAsync({ ...claims, purpose: 'content' }, { expiresIn: ttl });
+    const read = fmt === 'EPUB' ? await this.jwt.signAsync({ ...claims, purpose: 'read' }, { expiresIn: readTtl }) : null;
+    return { format: fmt, content_url: `/v1/content/${download}`, manifest_url: read ? `/v1/read/${read}/manifest.json` : null, lcp_license_url: null,
+      expires_at: new Date(Date.now() + (read ? readTtl : ttl) * 1000).toISOString(), watermark: false };
   }
 
   /** Resolve o ficheiro; revalida o direito no momento do download (uma revogação tem efeito imediato). */
-  async resolveContent(token: string) {
+  async resolveContent(token: string, purpose: 'content' | 'read' = 'content') {
     let t: any; try { t = await this.jwt.verifyAsync(token); } catch { throw new ForbiddenException(); }
-    if (t.purpose !== 'content') throw new ForbiddenException();
+    if (t.purpose !== purpose) throw new ForbiddenException();
     const r = await this.db.query(
       `SELECT v.storage_key, f.format::text AS format FROM entitlements en JOIN book_formats f ON f.book_edition_id=en.book_edition_id AND f.format=$3::book_format_type
          JOIN book_format_versions v ON v.id=f.current_version_id AND v.processing_status='READY'

@@ -13,7 +13,7 @@
 ## Testes
 ```bash
 npm run build -w @drp/contracts
-npm test -w @drp/api                    # 57 e2e (PostgreSQL; sem RabbitMQ/S3)
+npm test -w @drp/api                    # 63 e2e (PostgreSQL; sem RabbitMQ/S3)
 # com serviços reais (falha se faltarem variáveis):
 RABBITMQ_URL=amqp://guest:guest@localhost:5672 S3_ENDPOINT=http://localhost:9000 \
 AWS_ACCESS_KEY_ID=drp AWS_SECRET_ACCESS_KEY=drp_dev_only npm run test:infra -w @drp/api   # 14 testes
