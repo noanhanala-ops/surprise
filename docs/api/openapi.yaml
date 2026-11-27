@@ -210,7 +210,19 @@ paths:
     post: {tags: [Reading], summary: Criar destaque, parameters: [{$ref: '#/components/parameters/EditionId'}], requestBody: {required: true, content: {application/json: {schema: {type: object, required: [locator, selected_text], properties: {locator: {$ref: '#/components/schemas/Locator'}, selected_text: {type: string}, color: {type: string}}}}}}, responses: {'201': {description: Criado}}}
   /reading/{editionId}/annotations:
     get: {tags: [Reading], summary: Consultar anotações (inclui apagados desde `since` para sync), parameters: [{$ref: '#/components/parameters/EditionId'}, {name: since, in: query, schema: {type: string, format: date-time}}], responses: {'200': {description: Anotações}}}
+  /reading/{editionId}/bookmarks/{id}:
+    delete: {tags: [Reading], summary: Apagar marcador (remoção lógica, propaga-se na sincronização), parameters: [{$ref: '#/components/parameters/EditionId'}, {$ref: '#/components/parameters/Id'}], responses: {'204': {description: Apagado}, '404': {$ref: '#/components/responses/NotFound'}}}
+  /reading/{editionId}/highlights/{id}:
+    delete: {tags: [Reading], summary: Apagar destaque e nota associada (remoção lógica), parameters: [{$ref: '#/components/parameters/EditionId'}, {$ref: '#/components/parameters/Id'}], responses: {'204': {description: Apagado}, '404': {$ref: '#/components/responses/NotFound'}}}
+  /content/{token}:
+    get:
+      tags: [Entitlements]
+      security: []
+      summary: Entrega do ficheiro via URL curta devolvida por /library/{editionId}/access (revalida o direito no download)
+      parameters: [{name: token, in: path, required: true, schema: {type: string}}]
+      responses: {'200': {description: Ficheiro}, '403': {$ref: '#/components/responses/Forbidden'}}
   /reading/preferences:
+    get: {tags: [Reading], summary: Consultar preferências, responses: {'200': {description: Preferências}}}
     put: {tags: [Reading], summary: Actualizar preferências, requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {font_family: {type: string}, font_size: {type: integer, minimum: 8, maximum: 72}, theme: {type: string, enum: [LIGHT, DARK, SEPIA, AUTO]}, line_spacing: {type: number}}}}}}, responses: {'200': {description: Actualizado}}}
 
   /publisher/books:

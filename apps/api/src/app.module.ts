@@ -21,6 +21,8 @@ import { RefundsService } from './commerce/refunds.service';
 import { EntitlementsConsumer } from './entitlements/entitlements.consumer';
 import { EntitlementsService } from './entitlements/entitlements.service';
 import { EntitlementsController } from './entitlements/entitlements.controller';
+import { ReadingService } from './reading/reading.service';
+import { ReadingController } from './reading/reading.controller';
 import { RoyaltyConsumer } from './royalty/royalty.consumer';
 import { LocalStorageService, StorageService } from './storage/storage.service';
 
@@ -32,8 +34,8 @@ class HealthController {
 
 @Module({
   imports: [DbModule, EventsModule, IdentityModule],
-  controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController, CommerceController, PaymentsController, EntitlementsController],
+  controllers: [HealthController, PublisherController, AdminController, CatalogController, UploadController, CommerceController, PaymentsController, EntitlementsController, ReadingController],
   providers: [PublisherService, AdminService, CatalogService, UploadService, FakeProvider, ProviderRegistry, PaymentsService, CommerceService, RefundsService,
-    EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, { provide: StorageService, useClass: LocalStorageService }],
+    EntitlementsConsumer, EntitlementsService, RoyaltyConsumer, ReadingService, { provide: StorageService, useClass: LocalStorageService }],
 })
 export class AppModule {}
