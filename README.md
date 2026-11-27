@@ -14,6 +14,7 @@ Fase 0 concluída; **Fase 1 iniciada** (módulo Identity). Já validado:
 | 9 ADRs | `docs/adr` | — |
 | Arquitectura, comércio, entitlements, continuidade, ERD, rastreio AC-01…18 | `docs/` | — |
 | **API NestJS — módulo Identity** (registo, verificação de e-mail via outbox, login Argon2id, refresh com rotação e deteção de reutilização, dispositivos) | `apps/api` | 10 testes e2e em PostgreSQL real |
+| **Catalog, Publisher, Content (validação EPUB/PDF/CBZ), Admin (aprovação, contratos, territórios, suspensão), RBAC e auditoria** | `apps/api` | +15 testes e2e (25 no total) |
 | Análise de licenças dos 5 repositórios indicados | `docs/architecture/OPEN_SOURCE_REUSE.md` | licenças lidas dos LICENSE |
 | Contratos TS (PaymentProvider, eventos) | `packages/contracts` | — |
 | Docker Compose de dev, CI | `docker-compose.yml`, `.github/workflows` | — |
@@ -28,7 +29,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/tests/invariants.sql
 
 ## Próxima milestone (demo vertical)
 Admin publica um EPUB licenciado → utilizador regista-se → compra em sandbox (`FakeProvider`) → webhook → entitlement permanente → lê no browser (Readium Web).
-Ordem sugerida: ~~Identity~~ ✅ → Catalog/Content (upload+validação EPUB) → Commerce/Payments(+outbox) → Entitlements → Reader web.
+Ordem sugerida: ~~Identity~~ ✅ → ~~Catalog/Content~~ ✅ → Commerce/Payments(+outbox) → Entitlements → Reader web.
 
 ## Notas
 - `index.html` na raiz é uma página pessoal pré-existente, alheia à plataforma; não foi alterada.

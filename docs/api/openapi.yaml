@@ -88,7 +88,7 @@ paths:
     get:
       tags: [Catalog]
       security: []
-      summary: Listar livros (filtrado por direitos territoriais do país do pedido)
+      summary: Listar livros (filtrado por direitos territoriais; país vem do cabeçalho CF-IPCountry, ou X-Country em testes)
       parameters:
         - {$ref: '#/components/parameters/Cursor'}
         - {$ref: '#/components/parameters/Limit'}
@@ -214,6 +214,7 @@ paths:
     put: {tags: [Reading], summary: Actualizar preferências, requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {font_family: {type: string}, font_size: {type: integer, minimum: 8, maximum: 72}, theme: {type: string, enum: [LIGHT, DARK, SEPIA, AUTO]}, line_spacing: {type: number}}}}}}, responses: {'200': {description: Actualizado}}}
 
   /publisher/books:
+    get: {tags: [Publisher], summary: Listar edições da(s) minha(s) editora(s), responses: {'200': {description: Edições}}}
     post: {tags: [Publisher], summary: Submeter livro/edição, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PublisherBookInput'}}}}, responses: {'201': {description: Submetido em DRAFT}}}
   /publisher/books/{id}:
     put: {tags: [Publisher], summary: Actualizar livro, parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PublisherBookInput'}}}}, responses: {'200': {description: Actualizado}}}
@@ -229,6 +230,28 @@ paths:
   /publisher/payouts: {get: {tags: [Publisher], summary: Consultar pagamentos, responses: {'200': {description: Lotes de pagamento}}}}
   /publisher/contracts: {get: {tags: [Publisher], summary: Consultar contratos, responses: {'200': {description: Contratos e territórios}}}}
 
+  /publisher/register:
+    post:
+      tags: [Publisher]
+      summary: Registar editora/autor independente (fica PENDING até aprovação admin)
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [legal_name, display_name, country_code], properties: {legal_name: {type: string}, display_name: {type: string}, country_code: {type: string, minLength: 2, maxLength: 2}, is_individual_author: {type: boolean}}}}}}
+      responses: {'201': {description: Editora criada em PENDING}}
+  /publisher/books/{id}/submit:
+    post: {tags: [Publisher], summary: Submeter edição para revisão (exige formato READY e preço; `id` é o id da EDIÇÃO), parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Estado IN_REVIEW}, '422': {$ref: '#/components/responses/ValidationError'}}}
+  /uploads/{token}:
+    put:
+      tags: [Publisher]
+      security: []
+      summary: Upload binário via URL de curta duração devolvida por POST /publisher/books/{id}/assets (autorização no token)
+      parameters: [{name: token, in: path, required: true, schema: {type: string}}]
+      requestBody: {required: true, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
+      responses: {'201': {description: Ficheiro validado (READY)}, '401': {$ref: '#/components/responses/Unauthorized'}, '422': {description: Ficheiro inválido ou checksum divergente; nada é publicado}}
+  /admin/contracts:
+    post:
+      tags: [Admin]
+      summary: Criar contrato de direitos com territórios (perm contracts.manage)
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [edition_id, commission_bps, start_at, territories], properties: {edition_id: {type: string, format: uuid}, commission_bps: {type: integer, minimum: 0, maximum: 10000}, start_at: {type: string, format: date-time}, end_at: {type: string, format: date-time}, territories: {type: array, items: {type: object, required: [country_code, permission_type], properties: {country_code: {type: string, description: 'ISO-3166 alpha-2 ou WW (mundo)'}, permission_type: {type: string, enum: [SELL, DENY]}}}}}}}}}
+      responses: {'201': {description: Contrato criado}}
   /admin/publishers/{id}/approve: {post: {tags: [Admin], summary: Aprovar editora (perm catalog.publisher.approve), parameters: [{$ref: '#/components/parameters/Id'}], responses: {'204': {description: Aprovada}}}}
   /admin/books/{id}/approve: {post: {tags: [Admin], summary: Aprovar edição, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'204': {description: Aprovada}}}}
   /admin/books/{id}/reject: {post: {tags: [Admin], summary: Rejeitar edição, parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReasonBody'}}}}, responses: {'204': {description: Rejeitada}}}}

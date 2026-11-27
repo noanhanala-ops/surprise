@@ -1,6 +1,9 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 
+/** Qualquer coisa que execute SQL: o pool ou um cliente de transacção. */
+export interface Queryable { query(text: string, params?: any[]): Promise<{ rows: any[]; rowCount: number | null }> }
+
 /** Acesso SQL fino (SQL-first, ver ADR-0002). Cada módulo só toca nas suas tabelas. */
 @Injectable()
 export class DbService implements OnModuleDestroy {

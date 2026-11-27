@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { IdentityController } from './identity.controller';
 import { IdentityService } from './identity.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { PermissionsGuard } from './permissions.guard';
 
 @Module({
   imports: [JwtModule.registerAsync({ useFactory: () => {
@@ -11,7 +12,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
     return { secret, signOptions: { algorithm: 'HS256', issuer: 'drp-api' }, verifyOptions: { algorithms: ['HS256'], issuer: 'drp-api' } };
   } })],
   controllers: [IdentityController],
-  providers: [IdentityService, JwtAuthGuard],
-  exports: [JwtAuthGuard, JwtModule],
+  providers: [IdentityService, JwtAuthGuard, PermissionsGuard],
+  exports: [JwtAuthGuard, PermissionsGuard, JwtModule],
 })
 export class IdentityModule {}
