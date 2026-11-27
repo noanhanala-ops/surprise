@@ -1,0 +1,363 @@
+openapi: 3.0.3
+info:
+  title: Digital Reading Platform API
+  version: 1.0.0
+  description: |
+    API REST versionada da livraria digital global. Contrato de referência (contract-first).
+    - Dinheiro sempre em unidades menores (`amount_minor`) + `currency` ISO-4217.
+    - Operações de escrita críticas exigem `Idempotency-Key`.
+    - Não existe endpoint para o utilizador criar/activar entitlements.
+servers:
+  - url: https://api.example.com/v1
+tags:
+  - {name: Identity}
+  - {name: Catalog}
+  - {name: Commerce}
+  - {name: Payments}
+  - {name: Entitlements}
+  - {name: Reading}
+  - {name: Publisher}
+  - {name: Admin}
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      tags: [Identity]
+      security: []
+      summary: Criar conta
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RegisterRequest'}}}}
+      responses:
+        '201': {description: Conta criada; email de verificação enviado}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+  /auth/login:
+    post:
+      tags: [Identity]
+      security: []
+      summary: Autenticar
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LoginRequest'}}}}
+      responses:
+        '200': {description: Tokens ou desafio MFA, content: {application/json: {schema: {$ref: '#/components/schemas/AuthResult'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+  /auth/refresh:
+    post:
+      tags: [Identity]
+      security: []
+      summary: Renovar sessão (rotação de refresh token)
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [refresh_token], properties: {refresh_token: {type: string}}}}}}
+      responses:
+        '200': {description: Novos tokens, content: {application/json: {schema: {$ref: '#/components/schemas/AuthResult'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /auth/logout:
+    post: {tags: [Identity], summary: Terminar sessão, responses: {'204': {description: Sessão revogada}}}
+  /auth/forgot-password:
+    post:
+      tags: [Identity]
+      security: []
+      summary: Iniciar recuperação (resposta sempre 202, sem enumerar contas)
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [email], properties: {email: {type: string, format: email}}}}}}
+      responses: {'202': {description: Aceite}}
+  /auth/verify-email:
+    post:
+      tags: [Identity]
+      security: []
+      summary: Verificar email
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [token], properties: {token: {type: string}}}}}}
+      responses: {'204': {description: Verificado}, '400': {$ref: '#/components/responses/ValidationError'}}
+  /auth/mfa/verify:
+    post:
+      tags: [Identity]
+      summary: Validar segundo factor
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [challenge_id, code], properties: {challenge_id: {type: string}, code: {type: string}}}}}}
+      responses: {'200': {description: Tokens, content: {application/json: {schema: {$ref: '#/components/schemas/AuthResult'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}}
+  /users/me:
+    get: {tags: [Identity], summary: Consultar perfil, responses: {'200': {description: Perfil, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}}}
+  /users/me/devices:
+    get: {tags: [Identity], summary: Listar dispositivos, responses: {'200': {description: Dispositivos, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Device'}}}}}}}
+  /users/me/devices/{id}:
+    delete:
+      tags: [Identity]
+      summary: Revogar dispositivo
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses: {'204': {description: Revogado}, '404': {$ref: '#/components/responses/NotFound'}}
+
+  /books:
+    get:
+      tags: [Catalog]
+      security: []
+      summary: Listar livros (filtrado por direitos territoriais do país do pedido)
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+        - {name: category, in: query, schema: {type: string}}
+        - {name: language, in: query, schema: {type: string}}
+      responses: {'200': {description: Página de livros, content: {application/json: {schema: {$ref: '#/components/schemas/BookPage'}}}}}
+  /books/{slug}:
+    get:
+      tags: [Catalog]
+      security: []
+      summary: Detalhes do livro
+      parameters: [{name: slug, in: path, required: true, schema: {type: string}}]
+      responses: {'200': {description: Livro, content: {application/json: {schema: {$ref: '#/components/schemas/Book'}}}}, '404': {$ref: '#/components/responses/NotFound'}}
+  /books/{id}/editions:
+    get:
+      tags: [Catalog]
+      security: []
+      summary: Edições do livro
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses: {'200': {description: Edições, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Edition'}}}}}}
+  /books/{id}/preview:
+    get:
+      tags: [Catalog]
+      security: []
+      summary: Pré-visualização (URL temporária de amostra)
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses: {'200': {description: URL assinada de curta duração, content: {application/json: {schema: {$ref: '#/components/schemas/SignedUrl'}}}}}
+  /authors/{id}:
+    get: {tags: [Catalog], security: [], summary: Perfil de autor, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Autor}, '404': {$ref: '#/components/responses/NotFound'}}}
+  /publishers/{id}:
+    get: {tags: [Catalog], security: [], summary: Perfil de editora, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Editora}, '404': {$ref: '#/components/responses/NotFound'}}}
+  /categories:
+    get: {tags: [Catalog], security: [], summary: Categorias, responses: {'200': {description: Árvore de categorias}}}
+  /search:
+    get:
+      tags: [Catalog]
+      security: []
+      summary: Pesquisa global (OpenSearch)
+      parameters: [{name: q, in: query, required: true, schema: {type: string, minLength: 1}}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses: {'200': {description: Resultados, content: {application/json: {schema: {$ref: '#/components/schemas/BookPage'}}}}}
+
+  /cart:
+    get: {tags: [Commerce], summary: Consultar carrinho, responses: {'200': {description: Carrinho, content: {application/json: {schema: {$ref: '#/components/schemas/Cart'}}}}}}
+  /cart/items:
+    post:
+      tags: [Commerce]
+      summary: Adicionar edição ao carrinho (rejeita se já possuída ou não vendável no país)
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [edition_id], properties: {edition_id: {type: string, format: uuid}}}}}}
+      responses: {'201': {description: Adicionado, content: {application/json: {schema: {$ref: '#/components/schemas/Cart'}}}}, '409': {$ref: '#/components/responses/Conflict'}, '451': {description: Indisponível por restrição territorial}}
+  /cart/items/{id}:
+    delete: {tags: [Commerce], summary: Remover artigo, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'204': {description: Removido}}}
+  /orders:
+    post:
+      tags: [Commerce]
+      summary: Criar encomenda (snapshot de preço/impostos/condições)
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateOrderRequest'}}}}
+      responses: {'201': {description: Encomenda criada, content: {application/json: {schema: {$ref: '#/components/schemas/Order'}}}}, '409': {$ref: '#/components/responses/Conflict'}, '422': {$ref: '#/components/responses/ValidationError'}}
+    get: {tags: [Commerce], summary: Histórico de encomendas, parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}], responses: {'200': {description: Encomendas, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Order'}}}}}}}
+  /orders/{id}:
+    get: {tags: [Commerce], summary: Consultar encomenda (só do próprio utilizador), parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Encomenda, content: {application/json: {schema: {$ref: '#/components/schemas/Order'}}}}, '404': {$ref: '#/components/responses/NotFound'}}}
+  /orders/{id}/refund-requests:
+    post:
+      tags: [Commerce]
+      summary: Solicitar reembolso
+      parameters: [{$ref: '#/components/parameters/Id'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [reason], properties: {reason: {type: string}, order_item_ids: {type: array, items: {type: string, format: uuid}}}}}}}
+      responses: {'202': {description: Pedido registado para decisão}, '409': {$ref: '#/components/responses/Conflict'}}
+
+  /payments/checkout:
+    post:
+      tags: [Payments]
+      summary: Iniciar pagamento de uma encomenda (escolhe o PaymentProvider)
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [order_id, method], properties: {order_id: {type: string, format: uuid}, method: {type: string, example: mpesa}, return_url: {type: string, format: uri}}}}}}
+      responses: {'201': {description: Instruções de pagamento, content: {application/json: {schema: {$ref: '#/components/schemas/CheckoutResult'}}}}}
+  /payments/methods:
+    get:
+      tags: [Payments]
+      summary: Métodos disponíveis para país/moeda
+      parameters: [{name: country, in: query, schema: {type: string}}, {name: currency, in: query, schema: {type: string}}]
+      responses: {'200': {description: Métodos, content: {application/json: {schema: {type: array, items: {type: object, properties: {code: {type: string}, label: {type: string}, currencies: {type: array, items: {type: string}}}}}}}}}
+  /payments/{id}:
+    get: {tags: [Payments], summary: Estado do pagamento, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Estado, content: {application/json: {schema: {$ref: '#/components/schemas/Payment'}}}}}}
+  /webhooks/{provider}:
+    post:
+      tags: [Payments]
+      security: []
+      summary: Webhook do fornecedor (assinatura verificada; resposta rápida, processamento assíncrono)
+      description: Verifica assinatura e janela anti-replay, regista payload+hash, unicidade (provider, external_event_id), responde 2xx e processa via outbox.
+      parameters: [{name: provider, in: path, required: true, schema: {type: string}}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses: {'202': {description: Aceite (inclui duplicados)}, '400': {description: Assinatura inválida ou replay}}
+
+  /library:
+    get: {tags: [Entitlements], summary: Biblioteca pessoal, parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}], responses: {'200': {description: Itens da biblioteca, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/LibraryItem'}}}}}}}
+  /library/{editionId}/access:
+    get: {tags: [Entitlements], summary: Verificar acesso (devolve manifesto/URLs de curta duração), parameters: [{$ref: '#/components/parameters/EditionId'}], responses: {'200': {description: Acesso concedido, content: {application/json: {schema: {$ref: '#/components/schemas/AccessGrant'}}}}, '403': {$ref: '#/components/responses/Forbidden'}}}
+  /entitlements:
+    get: {tags: [Entitlements], summary: Direitos do utilizador, responses: {'200': {description: Direitos, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Entitlement'}}}}}}}
+  /entitlements/{id}:
+    get: {tags: [Entitlements], summary: Consultar direito, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Direito, content: {application/json: {schema: {$ref: '#/components/schemas/Entitlement'}}}}, '404': {$ref: '#/components/responses/NotFound'}}}
+
+  /reading/{editionId}/session:
+    post: {tags: [Reading], summary: Iniciar sessão de leitura, parameters: [{$ref: '#/components/parameters/EditionId'}], responses: {'201': {description: Sessão criada}, '403': {$ref: '#/components/responses/Forbidden'}}}
+  /reading/{editionId}/progress:
+    get: {tags: [Reading], summary: Recuperar progresso, parameters: [{$ref: '#/components/parameters/EditionId'}], responses: {'200': {description: Progresso, content: {application/json: {schema: {$ref: '#/components/schemas/Progress'}}}}, '404': {$ref: '#/components/responses/NotFound'}}}
+    put:
+      tags: [Reading]
+      summary: Guardar progresso (compare-and-set por `base_version`)
+      parameters: [{$ref: '#/components/parameters/EditionId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProgressUpdate'}}}}
+      responses:
+        '200': {description: Guardado, content: {application/json: {schema: {$ref: '#/components/schemas/Progress'}}}}
+        '409': {description: Conflito de versão; devolve o estado canónico do servidor, content: {application/json: {schema: {$ref: '#/components/schemas/Progress'}}}}
+  /reading/{editionId}/bookmarks:
+    post: {tags: [Reading], summary: Criar marcador, parameters: [{$ref: '#/components/parameters/EditionId'}], requestBody: {required: true, content: {application/json: {schema: {type: object, required: [locator], properties: {locator: {$ref: '#/components/schemas/Locator'}, title: {type: string}}}}}}, responses: {'201': {description: Criado}}}
+  /reading/{editionId}/highlights:
+    post: {tags: [Reading], summary: Criar destaque, parameters: [{$ref: '#/components/parameters/EditionId'}], requestBody: {required: true, content: {application/json: {schema: {type: object, required: [locator, selected_text], properties: {locator: {$ref: '#/components/schemas/Locator'}, selected_text: {type: string}, color: {type: string}}}}}}, responses: {'201': {description: Criado}}}
+  /reading/{editionId}/annotations:
+    get: {tags: [Reading], summary: Consultar anotações (inclui apagados desde `since` para sync), parameters: [{$ref: '#/components/parameters/EditionId'}, {name: since, in: query, schema: {type: string, format: date-time}}], responses: {'200': {description: Anotações}}}
+  /reading/preferences:
+    put: {tags: [Reading], summary: Actualizar preferências, requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {font_family: {type: string}, font_size: {type: integer, minimum: 8, maximum: 72}, theme: {type: string, enum: [LIGHT, DARK, SEPIA, AUTO]}, line_spacing: {type: number}}}}}}, responses: {'200': {description: Actualizado}}}
+
+  /publisher/books:
+    post: {tags: [Publisher], summary: Submeter livro/edição, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PublisherBookInput'}}}}, responses: {'201': {description: Submetido em DRAFT}}}
+  /publisher/books/{id}:
+    put: {tags: [Publisher], summary: Actualizar livro, parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PublisherBookInput'}}}}, responses: {'200': {description: Actualizado}}}
+  /publisher/books/{id}/assets:
+    post:
+      tags: [Publisher]
+      summary: Pedir URL de upload (pré-assinado); o processamento é assíncrono
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [kind, mime_type, size_bytes, checksum_sha256], properties: {kind: {type: string, enum: [COVER, PREVIEW, SOURCE_FILE, EPUB, PDF, AUDIOBOOK, COMIC]}, mime_type: {type: string}, size_bytes: {type: integer, minimum: 1}, checksum_sha256: {type: string}}}}}}
+      responses: {'201': {description: URL de upload, content: {application/json: {schema: {$ref: '#/components/schemas/SignedUrl'}}}}}
+  /publisher/sales: {get: {tags: [Publisher], summary: Consultar vendas, responses: {'200': {description: Vendas}}}}
+  /publisher/royalties: {get: {tags: [Publisher], summary: Consultar receitas, responses: {'200': {description: Ledger e saldos}}}}
+  /publisher/payouts: {get: {tags: [Publisher], summary: Consultar pagamentos, responses: {'200': {description: Lotes de pagamento}}}}
+  /publisher/contracts: {get: {tags: [Publisher], summary: Consultar contratos, responses: {'200': {description: Contratos e territórios}}}}
+
+  /admin/publishers/{id}/approve: {post: {tags: [Admin], summary: Aprovar editora (perm catalog.publisher.approve), parameters: [{$ref: '#/components/parameters/Id'}], responses: {'204': {description: Aprovada}}}}
+  /admin/books/{id}/approve: {post: {tags: [Admin], summary: Aprovar edição, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'204': {description: Aprovada}}}}
+  /admin/books/{id}/reject: {post: {tags: [Admin], summary: Rejeitar edição, parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReasonBody'}}}}, responses: {'204': {description: Rejeitada}}}}
+  /admin/books/{id}/suspend: {post: {tags: [Admin], summary: Suspender conteúdo (não revoga entitlements), parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReasonBody'}}}}, responses: {'204': {description: Suspensa}}}}
+  /admin/refunds/{id}/decision: {post: {tags: [Admin], summary: Decidir reembolso (MFA recente exigido), parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {required: true, content: {application/json: {schema: {type: object, required: [decision, reason], properties: {decision: {type: string, enum: [APPROVE, REJECT]}, reason: {type: string}, revoke_entitlement: {type: boolean}, legal_basis: {type: string}}}}}}, responses: {'204': {description: Decidido e auditado}}}}
+  /admin/entitlements/{id}/revoke: {post: {tags: [Admin], summary: Revogar direito (motivo, base legal e MFA obrigatórios; auditado), parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {required: true, content: {application/json: {schema: {type: object, required: [reason, legal_basis], properties: {reason: {type: string}, legal_basis: {type: string}}}}}}, responses: {'204': {description: Revogado}}}}
+  /admin/audit: {get: {tags: [Admin], summary: Consultar auditoria (perm audit.read), parameters: [{name: target_type, in: query, schema: {type: string}}, {name: target_id, in: query, schema: {type: string}}, {$ref: '#/components/parameters/Cursor'}], responses: {'200': {description: Entradas de auditoria}}}}
+  /admin/content-jobs: {get: {tags: [Admin], summary: Monitorizar processamento de ficheiros, responses: {'200': {description: Jobs}}}}
+
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  parameters:
+    Id: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    EditionId: {name: editionId, in: path, required: true, schema: {type: string, format: uuid}}
+    Cursor: {name: cursor, in: query, schema: {type: string}}
+    Limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 8, maxLength: 128}}
+  responses:
+    Unauthorized: {description: Não autenticado, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Forbidden: {description: Sem permissão/direito, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    NotFound: {description: Não encontrado, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Conflict: {description: Conflito (duplicado/estado inválido), content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    ValidationError: {description: Validação falhou, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    TooManyRequests: {description: Rate limit excedido, headers: {Retry-After: {schema: {type: integer}}}, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties: {type: {type: string}, title: {type: string}, status: {type: integer}, detail: {type: string}, code: {type: string}}
+    Money:
+      type: object
+      required: [amount_minor, currency]
+      properties: {amount_minor: {type: integer, minimum: 0}, currency: {type: string, pattern: '^[A-Z]{3}$'}}
+    RegisterRequest:
+      type: object
+      required: [email, password, display_name, country_code]
+      properties: {email: {type: string, format: email}, password: {type: string, minLength: 12}, display_name: {type: string}, country_code: {type: string, minLength: 2, maxLength: 2}, locale: {type: string}}
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties: {email: {type: string, format: email}, password: {type: string}, device: {$ref: '#/components/schemas/DeviceInfo'}}
+    DeviceInfo:
+      type: object
+      required: [fingerprint, platform]
+      properties: {fingerprint: {type: string}, platform: {type: string, enum: [WEB, ANDROID, IOS]}, label: {type: string}}
+    AuthResult:
+      type: object
+      properties:
+        access_token: {type: string}
+        refresh_token: {type: string}
+        expires_in: {type: integer}
+        mfa_challenge_id: {type: string, description: Presente quando é exigido segundo factor}
+    User:
+      type: object
+      properties: {id: {type: string, format: uuid}, email: {type: string}, display_name: {type: string}, locale: {type: string}, country_code: {type: string}, mfa_enabled: {type: boolean}}
+    Device:
+      type: object
+      properties: {id: {type: string, format: uuid}, platform: {type: string}, label: {type: string}, last_seen_at: {type: string, format: date-time}}
+    Book:
+      type: object
+      properties: {id: {type: string, format: uuid}, slug: {type: string}, title: {type: string}, description: {type: string}, editions: {type: array, items: {$ref: '#/components/schemas/Edition'}}}
+    Edition:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        isbn: {type: string}
+        language_code: {type: string}
+        publisher_id: {type: string, format: uuid}
+        formats: {type: array, items: {type: string, enum: [EPUB, PDF, AUDIOBOOK, COMIC]}}
+        price: {$ref: '#/components/schemas/Money'}
+        purchasable: {type: boolean, description: Já considera direitos territoriais e se o utilizador já possui a edição}
+        owned: {type: boolean}
+    BookPage:
+      type: object
+      properties: {items: {type: array, items: {$ref: '#/components/schemas/Book'}}, next_cursor: {type: string, nullable: true}}
+    SignedUrl:
+      type: object
+      properties: {url: {type: string, format: uri}, expires_at: {type: string, format: date-time}, method: {type: string}}
+    Cart:
+      type: object
+      properties: {id: {type: string, format: uuid}, currency: {type: string}, items: {type: array, items: {type: object, properties: {id: {type: string, format: uuid}, edition_id: {type: string, format: uuid}, price: {$ref: '#/components/schemas/Money'}}}}, subtotal: {$ref: '#/components/schemas/Money'}}
+    CreateOrderRequest:
+      type: object
+      required: [edition_ids, currency, billing_country]
+      properties: {edition_ids: {type: array, minItems: 1, items: {type: string, format: uuid}}, currency: {type: string}, billing_country: {type: string}}
+    Order:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [DRAFT, PENDING_PAYMENT, PAID, FULFILLED, PARTIALLY_REFUNDED, REFUNDED, CANCELLED, FAILED]}
+        currency: {type: string}
+        subtotal_minor: {type: integer}
+        tax_minor: {type: integer}
+        total_minor: {type: integer}
+        items: {type: array, items: {type: object, properties: {id: {type: string, format: uuid}, edition_id: {type: string, format: uuid}, unit_price_minor: {type: integer}, tax_minor: {type: integer}}}}
+        created_at: {type: string, format: date-time}
+    CheckoutResult:
+      type: object
+      properties: {payment_id: {type: string, format: uuid}, status: {type: string}, redirect_url: {type: string, format: uri}, instructions: {type: object, additionalProperties: true}}
+    Payment:
+      type: object
+      properties: {id: {type: string, format: uuid}, order_id: {type: string, format: uuid}, status: {type: string, enum: [INITIATED, PENDING, REQUIRES_ACTION, CAPTURED, FAILED, CANCELLED, REFUNDED, PARTIALLY_REFUNDED, DISPUTED]}, provider: {type: string}}
+    Entitlement:
+      type: object
+      properties: {id: {type: string, format: uuid}, book_edition_id: {type: string, format: uuid}, status: {type: string, enum: [ACTIVE, SUSPENDED, REVOKED]}, granted_at: {type: string, format: date-time}, expires_at: {type: string, nullable: true, format: date-time}}
+    LibraryItem:
+      type: object
+      properties: {entitlement_id: {type: string, format: uuid}, edition_id: {type: string, format: uuid}, title: {type: string}, cover_url: {type: string, format: uri}, formats: {type: array, items: {type: string}}, progress_percent: {type: number}}
+    AccessGrant:
+      type: object
+      properties: {format: {type: string}, manifest_url: {type: string, format: uri}, lcp_license_url: {type: string, format: uri, nullable: true}, expires_at: {type: string, format: date-time}, watermark: {type: boolean}}
+    Locator:
+      type: object
+      description: Readium Locator
+      required: [href]
+      properties: {href: {type: string}, type: {type: string}, locations: {type: object, additionalProperties: true}}
+    Progress:
+      type: object
+      properties: {edition_id: {type: string, format: uuid}, locator: {$ref: '#/components/schemas/Locator'}, progress_percent: {type: number, minimum: 0, maximum: 100}, version: {type: integer, format: int64}, updated_at: {type: string, format: date-time}}
+    ProgressUpdate:
+      type: object
+      required: [locator, progress_percent, base_version]
+      properties: {locator: {$ref: '#/components/schemas/Locator'}, progress_percent: {type: number, minimum: 0, maximum: 100}, base_version: {type: integer, format: int64, description: 'Versão em que o cliente se baseou (0 = primeira escrita)'}, device_id: {type: string, format: uuid}, client_updated_at: {type: string, format: date-time}}
+    PublisherBookInput:
+      type: object
+      required: [title, language_code]
+      properties: {title: {type: string}, description: {type: string}, language_code: {type: string}, isbn: {type: string}, author_ids: {type: array, items: {type: string, format: uuid}}, category_ids: {type: array, items: {type: string, format: uuid}}, prices: {type: array, items: {$ref: '#/components/schemas/Money'}}}
+    ReasonBody:
+      type: object
+      required: [reason]
+      properties: {reason: {type: string, minLength: 3}}

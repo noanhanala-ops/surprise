@@ -1,0 +1,23 @@
+name: CI
+on: { pull_request: {}, push: { branches: [main] } }
+permissions: { contents: read }
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: ci }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready" --health-interval 5s --health-retries 10
+    env: { DATABASE_URL: "postgres://postgres:ci@localhost:5432/postgres" }
+    steps:
+      - uses: actions/checkout@v4
+      - run: database/migrate.sh --seed
+      - run: psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1 -f database/tests/invariants.sql
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyyaml && python3 scripts/check_openapi.py

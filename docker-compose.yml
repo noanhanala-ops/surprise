@@ -1,0 +1,26 @@
+# Desenvolvimento / testes locais. Produção usa serviços geridos (ver docs/operations).
+services:
+  postgres:
+    image: postgres:16
+    environment: { POSTGRES_USER: drp, POSTGRES_PASSWORD: drp_dev_only, POSTGRES_DB: drp }
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U drp"], interval: 5s, retries: 10 }
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment: { RABBITMQ_DEFAULT_USER: drp, RABBITMQ_DEFAULT_PASS: drp_dev_only }
+    ports: ["5672:5672", "15672:15672"]
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment: { MINIO_ROOT_USER: drp, MINIO_ROOT_PASSWORD: drp_dev_only }
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+  opensearch:
+    image: opensearchproject/opensearch:2
+    environment: { discovery.type: single-node, DISABLE_SECURITY_PLUGIN: "true", OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m" }
+    ports: ["9200:9200"]
+volumes: { pgdata: {}, miniodata: {} }
